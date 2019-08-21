@@ -1,2 +1,2 @@
 # amuJS
-JumpStats plugin for CSGO
+Advanced JumpStats plugin for CSGO
