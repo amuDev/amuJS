@@ -1,4 +1,4 @@
-/*
+/* 
 	Credits:
 		1NutWunder for base JS plugin that i built ideas off and expanded!
 		GameChaos for building the base Distance Bug plugin!
