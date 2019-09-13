@@ -1,4 +1,4 @@
-/* 
+/*
 	Credits:
 		1NutWunder for base JS plugin that i built ideas off and expanded!
 		GameChaos for building the base Distance Bug plugin!
@@ -14,7 +14,7 @@
 #include <clientprefs>
 #undef REQUIRE_PLUGIN
 //BEST VERSION
-#define VERSION "4.0.1"
+#define VERSION "4.0.2"
 //reset stats flag
 #define ADMIN_LEVEL				ADMFLAG_BAN
 //Colors
@@ -118,6 +118,9 @@ char g_szAdvert1[1024];
 ConVar g_cvAdvert1;
 char g_szAdvert2[1024];
 ConVar g_cvAdvert2;
+//Pre or nopre?
+int g_iNoPreServer;
+ConVar g_cvNoPreServer;
 //distbug things
 #define EPSILON						0.000001
 #define MAXEDGE						32.0
@@ -314,6 +317,7 @@ float g_js_fMoneyDist[MAXPLAYERS+1];
 char g_js_szLastJumpDistance[MAXPLAYERS+1][256];
 char g_js_LogPath[PLATFORM_MAX_PATH];
 char ResetID[MAXPLAYERS+1][128];
+char StatType[MAXPLAYERS+1][128];
 //sounds
 char NUMBER_ONE_FULL_SOUND_PATH[]					= "sound/quake/holyshitpower.mp3";
 char NUMBER_ONE_RELATIVE_SOUND_PATH[]			= "*quake/holyshitpower.mp3";
@@ -338,7 +342,7 @@ char PROJUMP_RELATIVE_SOUND_PATH[]				= "*quake/impressive.mp3";
 char PERFECTJUMP_FULL_SOUND_PATH[]				= "sound/quake/perfect.mp3";
 char PERFECTJUMP_RELATIVE_SOUND_PATH[]		= "*quake/perfect.mp3";
 //TABLE JUMMPSTATS
-char sql_createPlayerjumpstats[]					= "CREATE TABLE IF NOT EXISTS playerjumpstats (steamid VARCHAR(32), name VARCHAR(32), multibhoprecord FLOAT NOT NULL DEFAULT '-1.0',  multibhoppre FLOAT NOT NULL DEFAULT '-1.0', multibhopmax FLOAT NOT NULL DEFAULT '-1.0', multibhopstrafes INT(12),multibhopcount INT(12),multibhopsync INT(12), multibhopheight FLOAT NOT NULL DEFAULT '-1.0', bhoprecord FLOAT NOT NULL DEFAULT '-1.0',  bhoppre FLOAT NOT NULL DEFAULT '-1.0', bhopmax FLOAT NOT NULL DEFAULT '-1.0', bhopstrafes INT(12),bhopsync INT(12), bhopheight FLOAT NOT NULL DEFAULT '-1.0', ljrecord FLOAT NOT NULL DEFAULT '-1.0', ljpre FLOAT NOT NULL DEFAULT '-1.0', ljmax FLOAT NOT NULL DEFAULT '-1.0', ljstrafes INT(12),ljsync INT(12), ljheight FLOAT NOT NULL DEFAULT '-1.0', ljblockdist INT(12) NOT NULL DEFAULT '-1',ljblockrecord FLOAT NOT NULL DEFAULT '-1.0', ljblockpre FLOAT NOT NULL DEFAULT '-1.0', ljblockmax FLOAT NOT NULL DEFAULT '-1.0', ljblockstrafes INT(12),ljblocksync INT(12), ljblockheight FLOAT NOT NULL DEFAULT '-1.0', dropbhoprecord FLOAT NOT NULL DEFAULT '-1.0',  dropbhoppre FLOAT NOT NULL DEFAULT '-1.0', dropbhopmax FLOAT NOT NULL DEFAULT '-1.0', dropbhopstrafes INT(12),dropbhopsync INT(12), dropbhopheight FLOAT NOT NULL DEFAULT '-1.0',  wjrecord FLOAT NOT NULL DEFAULT '-1.0', wjpre FLOAT NOT NULL DEFAULT '-1.0', wjmax FLOAT NOT NULL DEFAULT '-1.0', wjstrafes INT(12),wjsync INT(12),  wjheight FLOAT NOT NULL DEFAULT '-1.0',  PRIMARY KEY(steamid));";
+char sql_createPlayerjumpstats[]					= "CREATE TABLE IF NOT EXISTS playerjumpstats (steamid VARCHAR(32), name VARCHAR(32), multibhoprecord FLOAT NOT NULL DEFAULT '-1.0', multibhoppre FLOAT NOT NULL DEFAULT '-1.0', multibhopmax FLOAT NOT NULL DEFAULT '-1.0', multibhopstrafes INT(12),multibhopcount INT(12),multibhopsync INT(12), multibhopheight FLOAT NOT NULL DEFAULT '-1.0', bhoprecord FLOAT NOT NULL DEFAULT '-1.0', bhoppre FLOAT NOT NULL DEFAULT '-1.0', bhopmax FLOAT NOT NULL DEFAULT '-1.0', bhopstrafes INT(12),bhopsync INT(12), bhopheight FLOAT NOT NULL DEFAULT '-1.0', ljrecord FLOAT NOT NULL DEFAULT '-1.0', ljpre FLOAT NOT NULL DEFAULT '-1.0', ljmax FLOAT NOT NULL DEFAULT '-1.0', ljstrafes INT(12),ljsync INT(12), ljheight FLOAT NOT NULL DEFAULT '-1.0', ljblockdist INT(12) NOT NULL DEFAULT '-1',ljblockrecord FLOAT NOT NULL DEFAULT '-1.0', ljblockpre FLOAT NOT NULL DEFAULT '-1.0', ljblockmax FLOAT NOT NULL DEFAULT '-1.0', ljblockstrafes INT(12),ljblocksync INT(12), ljblockheight FLOAT NOT NULL DEFAULT '-1.0', dropbhoprecord FLOAT NOT NULL DEFAULT '-1.0', dropbhoppre FLOAT NOT NULL DEFAULT '-1.0', dropbhopmax FLOAT NOT NULL DEFAULT '-1.0', dropbhopstrafes INT(12),dropbhopsync INT(12), dropbhopheight FLOAT NOT NULL DEFAULT '-1.0', wjrecord FLOAT NOT NULL DEFAULT '-1.0', wjpre FLOAT NOT NULL DEFAULT '-1.0', wjmax FLOAT NOT NULL DEFAULT '-1.0', wjstrafes INT(12),wjsync INT(12), wjheight FLOAT NOT NULL DEFAULT '-1.0', PRIMARY KEY(steamid));";
 //bugged
 char sql_createBPlayerjumpstats[]					= "CREATE TABLE IF NOT EXISTS buggedplayerjumpstats (steamid VARCHAR(32), name VARCHAR(32), bljrecord FLOAT NOT NULL DEFAULT '-1.0',bljpre FLOAT NOT NULL DEFAULT '-1.0', bljmax FLOAT NOT NULL DEFAULT '-1.0', bljstrafes INT(12),bljsync INT(12),bljheight FLOAT NOT NULL DEFAULT '-1.0', PRIMARY KEY(steamid));";
 //Insert player
@@ -364,7 +368,7 @@ char sql_BupdateLj[]											= "UPDATE buggedplayerjumpstats SET name='%s', bl
 //open jumptop user
 //nobug
 char sql_selectPlayerJumpTopLJ[]					= "SELECT name, ljrecord, ljstrafes, steamid FROM playerjumpstats WHERE ljrecord > -1.0 ORDER BY ljrecord DESC LIMIT 20";
-char sql_selectPlayerJumpTopLJBlock[] 	  = "SELECT name, ljblockdist, ljblockrecord, ljblockstrafes, steamid FROM playerjumpstats WHERE ljblockdist > -1 ORDER BY ljblockdist DESC, ljblockrecord DESC LIMIT 20";
+char sql_selectPlayerJumpTopLJBlock[] 		= "SELECT name, ljblockdist, ljblockrecord, ljblockstrafes, steamid FROM playerjumpstats WHERE ljblockdist > -1 ORDER BY ljblockdist DESC, ljblockrecord DESC LIMIT 20";
 char sql_selectPlayerJumpTopWJ[]					= "SELECT name, wjrecord, wjstrafes, steamid FROM playerjumpstats WHERE wjrecord > -1.0 ORDER BY wjrecord DESC LIMIT 20";
 char sql_selectPlayerJumpTopBhop[]				= "SELECT name, bhoprecord, bhopstrafes, steamid FROM playerjumpstats WHERE bhoprecord > -1.0 ORDER BY bhoprecord DESC LIMIT 20";
 char sql_selectPlayerJumpTopMultiBhop[]		= "SELECT name, multibhoprecord, multibhopstrafes, steamid FROM playerjumpstats WHERE multibhoprecord > -1.0 ORDER BY multibhoprecord DESC LIMIT 20";
@@ -385,14 +389,14 @@ char sql_BselectJumpStats[]								= "SELECT steamid, name, bljrecord, bljpre, b
 char sql_BselectPlayerJumpLJ[]						= "SELECT steamid, name, bljrecord FROM buggedplayerjumpstats WHERE steamid = '%s';";
 //opening player stats from jumptop table
 //nobug
-char sql_selectPlayerRankLj[]							= "SELECT name FROM playerjumpstats WHERE ljrecord >= (SELECT ljrecord FROM playerjumpstats WHERE steamid = '%s' AND ljrecord > -1.0) AND ljrecord  > -1.0 ORDER BY ljrecord;";
-char sql_selectPlayerRankLjBlock[]				= "SELECT name FROM playerjumpstats WHERE ljblockdist >= (SELECT ljblockdist FROM playerjumpstats WHERE steamid = '%s' AND ljblockdist > -1.0) AND ljblockdist  > -1.0 ORDER BY ljblockdist DESC, ljblockrecord DESC;";
-char sql_selectPlayerRankWJ[]							= "SELECT name FROM playerjumpstats WHERE wjrecord >= (SELECT wjrecord FROM playerjumpstats WHERE steamid = '%s' AND wjrecord > -1.0) AND wjrecord  > -1.0 ORDER BY wjrecord;";
-char sql_selectPlayerRankBhop[]						= "SELECT name FROM playerjumpstats WHERE bhoprecord >= (SELECT bhoprecord FROM playerjumpstats WHERE steamid = '%s' AND bhoprecord > -1.0) AND bhoprecord  > -1.0 ORDER BY bhoprecord;";
-char sql_selectPlayerRankMultiBhop[]			= "SELECT name FROM playerjumpstats WHERE multibhoprecord >= (SELECT multibhoprecord FROM playerjumpstats WHERE steamid = '%s' AND multibhoprecord > -1.0) AND multibhoprecord  > -1.0 ORDER BY multibhoprecord;";
-char sql_selectPlayerRankDropBhop[]				= "SELECT name FROM playerjumpstats WHERE dropbhoprecord >= (SELECT dropbhoprecord FROM playerjumpstats WHERE steamid = '%s' AND dropbhoprecord > -1.0) AND dropbhoprecord  > -1.0 ORDER BY dropbhoprecord;";
+char sql_selectPlayerRankLj[]							= "SELECT name FROM playerjumpstats WHERE ljrecord >= (SELECT ljrecord FROM playerjumpstats WHERE steamid = '%s' AND ljrecord > -1.0) AND ljrecord > -1.0 ORDER BY ljrecord;";
+char sql_selectPlayerRankLjBlock[]				= "SELECT name FROM playerjumpstats WHERE ljblockdist >= (SELECT ljblockdist FROM playerjumpstats WHERE steamid = '%s' AND ljblockdist > -1.0) AND ljblockdist > -1.0 ORDER BY ljblockdist DESC, ljblockrecord DESC;";
+char sql_selectPlayerRankWJ[]							= "SELECT name FROM playerjumpstats WHERE wjrecord >= (SELECT wjrecord FROM playerjumpstats WHERE steamid = '%s' AND wjrecord > -1.0) AND wjrecord > -1.0 ORDER BY wjrecord;";
+char sql_selectPlayerRankBhop[]						= "SELECT name FROM playerjumpstats WHERE bhoprecord >= (SELECT bhoprecord FROM playerjumpstats WHERE steamid = '%s' AND bhoprecord > -1.0) AND bhoprecord > -1.0 ORDER BY bhoprecord;";
+char sql_selectPlayerRankMultiBhop[]			= "SELECT name FROM playerjumpstats WHERE multibhoprecord >= (SELECT multibhoprecord FROM playerjumpstats WHERE steamid = '%s' AND multibhoprecord > -1.0) AND multibhoprecord > -1.0 ORDER BY multibhoprecord;";
+char sql_selectPlayerRankDropBhop[]				= "SELECT name FROM playerjumpstats WHERE dropbhoprecord >= (SELECT dropbhoprecord FROM playerjumpstats WHERE steamid = '%s' AND dropbhoprecord > -1.0) AND dropbhoprecord > -1.0 ORDER BY dropbhoprecord;";
 //bugged
-char sql_BselectPlayerRankLj[]						= "SELECT name FROM buggedplayerjumpstats WHERE bljrecord >= (SELECT bljrecord FROM buggedplayerjumpstats WHERE steamid = '%s' AND bljrecord > -1.0) AND bljrecord  > -1.0 ORDER BY bljrecord;";
+char sql_BselectPlayerRankLj[]						= "SELECT name FROM buggedplayerjumpstats WHERE bljrecord >= (SELECT bljrecord FROM buggedplayerjumpstats WHERE steamid = '%s' AND bljrecord > -1.0) AND bljrecord > -1.0 ORDER BY bljrecord;";
 //reset stats
 //nobug
 char sql_resetJumpStats[]									= "UPDATE playerjumpstats SET multibhoprecord = '-1.0', ljrecord = '-1.0', wjrecord = '-1.0', dropbhoprecord = '-1.0', bhoprecord = '-1.0', ljblockrecord = '-1' WHERE steamid = '%s';";
@@ -451,8 +455,9 @@ public OnPluginStart() {
 	g_cvRedDBHOP				= CreateConVar("js_red_dbhop", "285.0", "Dist for DROP BHOP to be considered RED", FCVAR_NOTIFY, true, 200.0, true, 999.0);
 	g_cvGoldDBHOP				= CreateConVar("js_gold_dbhop", "290.0", "Dist for DROP BHOP to be considered GOLD", FCVAR_NOTIFY, true, 200.0, true, 999.0);
 	g_cvMaxDBHOP				= CreateConVar("js_max_dbhop", "297.0", "Dist for DROP BHOP to be considered TOO HIGH", FCVAR_NOTIFY, true, 200.0, true, 999.0);
-	g_cvCTJumpStats			= CreateConVar("js_ct_jumpstats", "0.0", "Enable/Disable CT JumpStatting", FCVAR_NOTIFY, true, 1.0, true, 0.0);
-	g_cvCTDistbugStats	= CreateConVar("js_ct_distbugstats", "1.0", "Enable/Disable CT Distbug Statting", FCVAR_NOTIFY, true, 1.0, true, 0.0);
+	g_cvCTJumpStats			= CreateConVar("js_ct_jumpstats", "0.0", "Enable/Disable CT JumpStatting. 1 = Enable 0 = Disable", FCVAR_NOTIFY, true, 1.0, true, 0.0);
+	g_cvCTDistbugStats	= CreateConVar("js_ct_distbugstats", "0.0", "Enable/Disable CT Distbug Statting. 1 = Enable 0 = Disable", FCVAR_NOTIFY, true, 1.0, true, 0.0);
+	g_cvNoPreServer			= CreateConVar("js_nopre_server", "0.0", "Is the server pre or nopre? used for ladder bug detection. 1 = nopre 0 = pre", FCVAR_NOTIFY, true, 1.0, true, 0.0);
 	g_cvAdvert1					= CreateConVar("js_advert_1", "", "Text that prints to chat 60 seconds after round start, you can use color tags (see csgocolors.inc) (Leave empty for no advert)", FCVAR_NOTIFY);
 	g_cvAdvert2					= CreateConVar("js_advert_2", "", "Text that prints to chat 20 seconds after advert1, you can use color tags (see csgocolors.inc) (Leave empty for no advert)", FCVAR_NOTIFY);
 
@@ -520,6 +525,8 @@ public OnPluginStart() {
 	HookConVarChange(g_cvCTJumpStats, OnSettingChanged);
 	g_iCTDistbugStats		= GetConVarInt(g_cvCTDistbugStats);
 	HookConVarChange(g_cvCTDistbugStats, OnSettingChanged);
+	g_iNoPreServer			= GetConVarInt(g_cvNoPreServer);
+	HookConVarChange(g_cvNoPreServer, OnSettingChanged);
 //thanks to JoinedSenses for the help on these 2 cvars
 	GetConVarString(g_cvAdvert1, g_szAdvert1, sizeof(g_szAdvert1));
 	HookConVarChange(g_cvAdvert1, OnSettingChanged);
@@ -578,7 +585,7 @@ public OnPluginStart() {
 	g_hSpeedColorCookie = RegClientCookie("SpeedColorCookie", "Speed Panel Speed Color Cookie", CookieAccess_Private);
 	g_hMoneyCookie = RegClientCookie("MoneyCookie", "No Bug LJ PB Money Cookie", CookieAccess_Private);
 	for (new i = MaxClients; i > 0; --i) {
-		if (!AreClientCookiesCached(i))
+		if(!AreClientCookiesCached(i))
 			continue;
 		OnClientPostAdminCheck(i);
 		UpdateThing(i);
@@ -590,7 +597,7 @@ public OnPluginStart() {
 	AutoExecConfig(true, "distbugfix");
 	g_db_hGravity = FindConVar("sv_gravity");
 	HookConVarChange(g_db_hGravity, OnConvarChanged);
-	if (g_db_hGravity != INVALID_HANDLE)
+	if(g_db_hGravity != INVALID_HANDLE)
 		g_db_fTickGravity = GetConVarFloat(g_db_hGravity) / g_db_fTickRate;
 }
 public UpdateThing(int client) {
@@ -599,71 +606,73 @@ public UpdateThing(int client) {
 public OnSettingChanged(Handle convar, const char[] oldValue, const char[] newValue) {
 	if(convar == g_cvGreyLJ)
 		g_fGreyLJ = StringToFloat(newValue[0]);
-	if(convar == g_cvGreenLJ)
+	else if(convar == g_cvGreenLJ)
 		g_fGreenLJ = StringToFloat(newValue[0]);
-	if(convar == g_cvBlueLJ)
+	else if(convar == g_cvBlueLJ)
 		g_fBlueLJ = StringToFloat(newValue[0]);
-	if(convar == g_cvRedLJ)
+	else if(convar == g_cvRedLJ)
 		g_fRedLJ = StringToFloat(newValue[0]);
-	if(convar == g_cvGoldLJ)
+	else if(convar == g_cvGoldLJ)
 		g_fGoldLJ = StringToFloat(newValue[0]);
-	if(convar == g_cvMaxLJ)
+	else if(convar == g_cvMaxLJ)
 		g_fMaxLJ = StringToFloat(newValue[0]);
-	if(convar == g_cvGreyWJ)
+	else if(convar == g_cvGreyWJ)
 		g_fGreyWJ = StringToFloat(newValue[0]);
-	if(convar == g_cvGreenWJ)
+	else if(convar == g_cvGreenWJ)
 		g_fGreenWJ = StringToFloat(newValue[0]);
-	if(convar == g_cvBlueWJ)
+	else if(convar == g_cvBlueWJ)
 		g_fBlueWJ = StringToFloat(newValue[0]);
-	if(convar == g_cvRedWJ)
+	else if(convar == g_cvRedWJ)
 		g_fRedWJ = StringToFloat(newValue[0]);
-	if(convar == g_cvGoldWJ)
+	else if(convar == g_cvGoldWJ)
 		g_fGoldWJ = StringToFloat(newValue[0]);
-	if(convar == g_cvMaxWJ)
+	else if(convar == g_cvMaxWJ)
 		g_fMaxWJ = StringToFloat(newValue[0]);
-	if(convar == g_cvGreyBHOP)
+	else if(convar == g_cvGreyBHOP)
 		g_fGreyBHOP = StringToFloat(newValue[0]);
-	if(convar == g_cvGreenBHOP)
+	else if(convar == g_cvGreenBHOP)
 		g_fGreenBHOP = StringToFloat(newValue[0]);
-	if(convar == g_cvBlueBHOP)
+	else if(convar == g_cvBlueBHOP)
 		g_fBlueBHOP = StringToFloat(newValue[0]);
-	if(convar == g_cvRedBHOP)
+	else if(convar == g_cvRedBHOP)
 		g_fRedBHOP = StringToFloat(newValue[0]);
-	if(convar == g_cvGoldBHOP)
+	else if(convar == g_cvGoldBHOP)
 		g_fGoldBHOP = StringToFloat(newValue[0]);
-	if(convar == g_cvMaxBHOP)
+	else if(convar == g_cvMaxBHOP)
 		g_fMaxBHOP = StringToFloat(newValue[0]);
-	if(convar == g_cvGreyMBHOP)
+	else if(convar == g_cvGreyMBHOP)
 		g_fGreyMBHOP = StringToFloat(newValue[0]);
-	if(convar == g_cvGreenMBHOP)
+	else if(convar == g_cvGreenMBHOP)
 		g_fGreenMBHOP = StringToFloat(newValue[0]);
-	if(convar == g_cvBlueMBHOP)
+	else if(convar == g_cvBlueMBHOP)
 		g_fBlueMBHOP = StringToFloat(newValue[0]);
-	if(convar == g_cvRedMBHOP)
+	else if(convar == g_cvRedMBHOP)
 		g_fRedMBHOP = StringToFloat(newValue[0]);
-	if(convar == g_cvGoldMBHOP)
+	else if(convar == g_cvGoldMBHOP)
 		g_fGoldMBHOP = StringToFloat(newValue[0]);
-	if(convar == g_cvMaxMBHOP)
+	else if(convar == g_cvMaxMBHOP)
 		g_fMaxMBHOP = StringToFloat(newValue[0]);
-	if(convar == g_cvGreyDBHOP)
+	else if(convar == g_cvGreyDBHOP)
 		g_fGreyDBHOP = StringToFloat(newValue[0]);
-	if(convar == g_cvGreenDBHOP)
+	else if(convar == g_cvGreenDBHOP)
 		g_fGreenDBHOP = StringToFloat(newValue[0]);
-	if(convar == g_cvBlueDBHOP)
+	else if(convar == g_cvBlueDBHOP)
 		g_fBlueDBHOP = StringToFloat(newValue[0]);
-	if(convar == g_cvRedDBHOP)
+	else if(convar == g_cvRedDBHOP)
 		g_fRedDBHOP = StringToFloat(newValue[0]);
-	if(convar == g_cvGoldDBHOP)
+	else if(convar == g_cvGoldDBHOP)
 		g_fGoldDBHOP = StringToFloat(newValue[0]);
-	if(convar == g_cvMaxDBHOP)
+	else if(convar == g_cvMaxDBHOP)
 		g_fMaxDBHOP = StringToFloat(newValue[0]);
-	if(convar == g_cvCTJumpStats)
+	else if(convar == g_cvCTJumpStats)
 		g_iCTJumpStats = StringToInt(newValue[0]);
-	if(convar == g_cvCTDistbugStats)
+	else if(convar == g_cvCTDistbugStats)
 		g_iCTDistbugStats = StringToInt(newValue[0]);
-	if(convar == g_cvAdvert1)
+	else if(convar == g_cvNoPreServer)
+		g_iNoPreServer = StringToInt(newValue)
+	else if(convar == g_cvAdvert1)
 		strcopy(g_szAdvert1, sizeof(g_szAdvert1), newValue);
-	if(convar == g_cvAdvert2)
+	else if(convar == g_cvAdvert2)
 		strcopy(g_szAdvert2, sizeof(g_szAdvert2), newValue);
 }
 public OnClientPostAdminCheck(int client) {
@@ -760,7 +769,7 @@ public OnMapEnd() {
 		SDKUnhook(ent,SDKHook_Touch,Push_Touch);
 }
 public OnClientPutInServer(client) {
-	if (!IsValidEntity(client) || IsFakeClient(client) || !IsClientInGame(client))
+	if(!IsValidEntity(client) || IsFakeClient(client) || !IsClientInGame(client))
 		return;
 	SDKHook(client, SDKHook_StartTouch, Hook_OnTouch);
 	g_bdetailView[client] = false;
@@ -779,7 +788,7 @@ public OnClientPutInServer(client) {
 	g_js_GoldJump_Count[client] = 0;
 	Format(g_js_szLastJumpDistance[client], 256, "<font color='#948d8d'>0.0 units</font>");
 // set default values
-	for( new i = 0; i < MAX_STRAFES; i++ ) {
+	for(new i = 0; i < MAX_STRAFES; i++) {
 		g_js_Strafe_Good_Sync[client][i] = 0.0;
 		g_js_Strafe_Frames[client][i] = 0.0;
 	}
@@ -813,31 +822,36 @@ public Action Event_OnPlayerSpawn(Handle event, const char[] name, bool dontBroa
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 	if(client != 0 && g_bFirstTeamJoin[client])
 		g_bFirstTeamJoin[client] = false;
-	if (IsValidClient(client)) {
+	if(IsValidClient(client)) {
 		SpeedPanelUpdate[client] = true;
 		OnClientPostAdminCheck(client);
-		delete g_hAdvertTimer;
-		g_hAdvertTimer = CreateTimer(60.0, AdvertTimer, TIMER_FLAG_NO_MAPCHANGE);
+		if(g_szAdvert1[0] != '\0'|| g_szAdvert2[0] != '\0') {
+			delete g_hAdvertTimer;
+			g_hAdvertTimer = CreateTimer(60.0, AdvertTimer, TIMER_FLAG_NO_MAPCHANGE);
+		}
 	}
 }
 public Action AdvertTimer(Handle timer) {
-	g_hAdvertTimer = null;
-	CPrintToChatAll("%s", g_szAdvert1);
-	CreateTimer(20.0, DiscordTimer, TIMER_FLAG_NO_MAPCHANGE);
+	if(g_szAdvert1[0] != '\0') {
+		g_hAdvertTimer = null;
+		CPrintToChatAll("%s", g_szAdvert1);
+	}
+	if(g_szAdvert2[0] != '\0')
+		CreateTimer(20.0, DiscordTimer, TIMER_FLAG_NO_MAPCHANGE);
 }
 public Action DiscordTimer(Handle timer) {
 	CPrintToChatAll("%s", g_szAdvert2);
 }
 public Hook_OnTouch(client, other) {
-	if (IsValidClient(client) && IsPlayerAlive(client)) {
+	if(IsValidClient(client) && IsPlayerAlive(client)) {
 		char classname[32];
-		if (IsValidEdict(other))
+		if(IsValidEdict(other))
 			GetEntityClassname(other, classname, 32);
-		if (StrEqual(classname,"func_movelinear")) {
+		if(StrEqual(classname,"func_movelinear")) {
 			g_js_bFuncMoveLinear[client] = true;
 			return;
 		}
-		if (!(GetEntityFlags(client) & FL_ONGROUND) || other != 0)
+		if(!(GetEntityFlags(client) & FL_ONGROUND) || other != 0)
 			ResetJump(client);
 	}
 }
@@ -928,7 +942,7 @@ public Action Event_OnJump(Handle event, const char[] name, bool Broadcast) {
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 	g_fAirTime[client] = GetEngineTime()
 	bool touchwall = WallCheck(client);
-	if (!touchwall)
+	if(!touchwall)
 		Prethink(client, view_as<float>({0.0,0.0,0.0}),0.0);
 	g_bLJ[client]=false;
 	g_bWJ[client]=false;
@@ -942,7 +956,7 @@ public Action Event_OnJump(Handle event, const char[] name, bool Broadcast) {
 		g_js_bPerfJump[client] = false;
 }
 public Action BhopCheck(Handle timer, any:client) {
-	if (!g_js_bBhop[client]) {
+	if(!g_js_bBhop[client]) {
 		g_js_LeetJump_Count[client] = 0;
 		g_js_GoldJump_Count[client] = 0;
 	}
@@ -962,14 +976,14 @@ public float GetVelocity(client) {
 public Action OnPlayerRunCmd(client, &buttons, &impulse, float vel[3], float angles[3], &weapon, &subtype, &cmdnum, &tickcount, &seed, mouse[2]) {
 	float origin[3];
 	float ang[3];
-	if (!IsValidClient(client))
+	if(!IsValidClient(client))
 		return Plugin_Continue;
 //some methods..
 	if(IsPlayerAlive(client)) {
 		GetClientAbsOrigin(client, origin);
 		GetClientEyeAngles(client, ang);
 		float flSpeed = GetSpeed(client);
-		if (g_js_bPlayerJumped[client] == false && GetEntityFlags(client) & FL_ONGROUND && ((buttons & IN_MOVERIGHT) || (buttons & IN_MOVELEFT) || (buttons & IN_BACK) || (buttons & IN_FORWARD)))
+		if(g_js_bPlayerJumped[client] == false && GetEntityFlags(client) & FL_ONGROUND && ((buttons & IN_MOVERIGHT) || (buttons & IN_MOVELEFT) || (buttons & IN_BACK) || (buttons & IN_FORWARD)))
 			g_js_GroundFrames[client]++;
 	//get player speed
 		g_fSpeed[client] = GetSpeed(client);
@@ -984,7 +998,7 @@ public Action OnPlayerRunCmd(client, &buttons, &impulse, float vel[3], float ang
 		CalcJumpSync(client, flSpeed, ang[1], buttons);
 		CalcLastJumpHeight(client, buttons, origin);
 	//ljblock
-		if (g_js_bPlayerJumped[client] == false && GetEntityFlags(client) & FL_ONGROUND && ((buttons & IN_JUMP))) {
+		if(g_js_bPlayerJumped[client] == false && GetEntityFlags(client) & FL_ONGROUND && ((buttons & IN_JUMP))) {
 			float temp[3];
 			float pos[3];
 			GetClientAbsOrigin(client,pos);
@@ -1014,11 +1028,11 @@ public Action OnPlayerRunCmd(client, &buttons, &impulse, float vel[3], float ang
 		Postthink(client);
 	}
 	//reset/save current values
-	if (GetEntityFlags(client) & FL_ONGROUND) {
+	if(GetEntityFlags(client) & FL_ONGROUND) {
 		g_fLastPositionOnGround[client] = origin;
 		g_bLastInvalidGround[client] = g_js_bInvalidGround[client];
 	}
-	if (!(GetEntityFlags(client) & FL_ONGROUND) && g_js_bPlayerJumped[client] == false)
+	if(!(GetEntityFlags(client) & FL_ONGROUND) && g_js_bPlayerJumped[client] == false)
 		g_js_GroundFrames[client] = 0;
 	g_fLastAngles[client] = ang;
 	g_fLastSpeed[client] = g_fSpeed[client];
@@ -1030,17 +1044,17 @@ public Action OnPlayerRunCmd(client, &buttons, &impulse, float vel[3], float ang
 	GetEntPropVector(client, Prop_Data, "m_vecVelocity", g_db_fVelocity[client]);
 	if(GetEntityMoveType(client) == MOVETYPE_LADDER)
 		g_db_bValidJump[client] = false;
-	if (!(buttons & IN_FORWARD) && g_db_iLastButtons[client] & IN_FORWARD)
+	if(!(buttons & IN_FORWARD) && g_db_iLastButtons[client] & IN_FORWARD)
 		g_db_iWReleaseFrame[client] = GetGameTickCount();
-	if (GetEntityFlags(client) & FL_ONGROUND) {
+	if(GetEntityFlags(client) & FL_ONGROUND) {
 		g_db_iFramesOnGround[client]++;
-		if (g_db_iFramesOnGround[client] > 1 && buttons & IN_JUMP && !(g_db_iLastButtons[client] & IN_JUMP)) {
+		if(g_db_iFramesOnGround[client] > 1 && buttons & IN_JUMP && !(g_db_iLastButtons[client] & IN_JUMP)) {
 			g_db_bValidJump[client] = true;
 			g_db_fMaxHeight[client] = -99999.0;
 			g_db_iJumpFrame[client] = GetGameTickCount();
 			g_db_fJumpPosition[client] = g_db_fPosition[client];
 		}
-		if (g_db_bValidJump[client] && g_db_iFramesOnGround[client] == 1) {
+		if(g_db_bValidJump[client] && g_db_iFramesOnGround[client] == 1) {
 			OnJumpLand(client);
 			ResetStatStrafeVars(client);
 			g_db_fLastVelInAir[client] = NULL_VECTOR;
@@ -1050,7 +1064,7 @@ public Action OnPlayerRunCmd(client, &buttons, &impulse, float vel[3], float ang
 		g_db_iDeadAirtime[client] = 0;
 		g_db_iFramesOverlapped[client] = 0;
 	}
-	else if (g_db_bInAir[client])
+	else if(g_db_bInAir[client])
 		OnPlayerInAir(client, buttons, vel);
 	// LAST
 	g_db_fLastVelocity[client] = g_db_fVelocity[client];
@@ -1070,20 +1084,20 @@ public Action OnPlayerRunCmd(client, &buttons, &impulse, float vel[3], float ang
 
 		char keys[6][64] = { "W", "A", "S", "D", "C", "J" };
 
-		if (!holdingW) keys[0] = "- ";
-		if (!holdingA) keys[1] = " - ";
-		if (!holdingS) keys[2] = " - ";
-		if (!holdingD) keys[3] = " - ";
-		if (!holdingC) keys[4] = " - ";
-		if (!holdingJ) keys[5] = " - ";
+		if(!holdingW) keys[0] = "- ";
+		if(!holdingA) keys[1] = " - ";
+		if(!holdingS) keys[2] = " - ";
+		if(!holdingD) keys[3] = " - ";
+		if(!holdingC) keys[4] = " - ";
+		if(!holdingJ) keys[5] = " - ";
 
-/*		if (holdingW && holdingS) {
+/*		if(holdingW && holdingS) {
 			PrintToChat(client, "1");
 			keys[0] = "<font color='#FFFFFF'>W - S</font>";
 			keys[1] = "";
 		}*/
 
-		if (IsValidEntity(client) && 1 <= client <= MaxClients) {
+		if(IsValidEntity(client) && 1 <= client <= MaxClients) {
 			if(g_js_fPreStrafe[client] > 276.0)
 				PrintHintText(client, "<font color='#BF2A00'>Last Jump</font>: %s\n<font color='#BF2A00'>Speed</font>: <font color='%s'>%.1f</font> u/s (<font color='%s'>%.0f</font>)\n<font color='#BF2A00'>Keys</font>: <font color='%s'>%s%s%s%s%s%s</font>", g_js_szLastJumpDistance[client], g_iHEX[g_iSpeedColor[client]], g_fSpeed[client], g_iHEX[g_iPerfColor[client]], g_js_fPreStrafe[client], g_iHEX[g_iKeyColors[client]], keys[0], keys[1], keys[2], keys[3], keys[4], keys[5]);
 			else
@@ -1098,15 +1112,15 @@ public Action OnPlayerRunCmd(client, &buttons, &impulse, float vel[3], float ang
 	return Plugin_Changed;
 }
 public CalcJumpMaxSpeed(client, float fspeed) {
-	if (g_js_bPlayerJumped[client])
-		if (g_fLastSpeed[client] <= fspeed)
+	if(g_js_bPlayerJumped[client])
+		if(g_fLastSpeed[client] <= fspeed)
 			g_js_fMax_Speed[client] = fspeed;
 }
 public CalcJumpHeight(client) {
-	if (g_js_bPlayerJumped[client]) {
+	if(g_js_bPlayerJumped[client]) {
 		float height[3];
 		GetClientAbsOrigin(client, height);
-		if (height[2] > g_js_fMax_Height[client])
+		if(height[2] > g_js_fMax_Height[client])
 			g_js_fMax_Height[client] = height[2];
 		g_flastHeight[client] = height[2];
 	}
@@ -1124,16 +1138,16 @@ public CalcLastJumpHeight(client, &buttons, float origin[3]) {
 	}
 }
 public CalcJumpSync(client, float speed, float ang, &buttons) {
-	if (g_js_bPlayerJumped[client]) {
+	if(g_js_bPlayerJumped[client]) {
 		bool turning_right = false;
 		bool turning_left = false;
-		if( ang < g_fLastAngles[client][1])
+		if(ang < g_fLastAngles[client][1])
 			turning_right = true;
-		else if( ang > g_fLastAngles[client][1])
+		else if(ang > g_fLastAngles[client][1])
 				turning_left = true;
 	//strafestats
 		if(turning_left || turning_right) {
-			if( !g_js_Strafing_AW[client] && ((buttons & IN_FORWARD) || (buttons & IN_MOVELEFT)) && !(buttons & IN_MOVERIGHT) && !(buttons & IN_BACK) ) {
+			if(!g_js_Strafing_AW[client] && ((buttons & IN_FORWARD) || (buttons & IN_MOVELEFT)) && !(buttons & IN_MOVERIGHT) && !(buttons & IN_BACK)) {
 				g_js_Strafing_AW[client] = true;
 				g_js_Strafing_SD[client] = false;
 				g_js_StrafeCount[client]++;
@@ -1141,7 +1155,7 @@ public CalcJumpSync(client, float speed, float ang, &buttons) {
 				g_js_Strafe_Frames[client][g_js_StrafeCount[client]-1] = 0.0;
 				g_js_Strafe_Max_Speed[client][g_js_StrafeCount[client] - 1] = speed;
 			}
-			else if( !g_js_Strafing_SD[client] && ((buttons & IN_BACK) || (buttons & IN_MOVERIGHT)) && !(buttons & IN_MOVELEFT) && !(buttons & IN_FORWARD) ) {
+			else if(!g_js_Strafing_SD[client] && ((buttons & IN_BACK) || (buttons & IN_MOVERIGHT)) && !(buttons & IN_MOVELEFT) && !(buttons & IN_FORWARD)) {
 				g_js_Strafing_AW[client] = false;
 				g_js_Strafing_SD[client] = true;
 				g_js_StrafeCount[client]++;
@@ -1151,21 +1165,21 @@ public CalcJumpSync(client, float speed, float ang, &buttons) {
 			}
 		}
 	//sync
-		if( g_fLastSpeed[client] < speed ) {
+		if(g_fLastSpeed[client] < speed) {
 			g_js_Good_Sync_Frames[client]++;
-			if( 0 < g_js_StrafeCount[client] <= MAX_STRAFES ) {
+			if(0 < g_js_StrafeCount[client] <= MAX_STRAFES) {
 				g_js_Strafe_Good_Sync[client][g_js_StrafeCount[client] - 1]++;
 				g_js_Strafe_Gained[client][g_js_StrafeCount[client] - 1] += (speed - g_fLastSpeed[client]);
 			}
 		}
-		else if( g_fLastSpeed[client] > speed ) {
-			if( 0 < g_js_StrafeCount[client] <= MAX_STRAFES )
+		else if(g_fLastSpeed[client] > speed) {
+			if(0 < g_js_StrafeCount[client] <= MAX_STRAFES)
 				g_js_Strafe_Lost[client][g_js_StrafeCount[client] - 1] += (g_fLastSpeed[client] - speed);
 		}
 	//strafe frames
-		if( 0 < g_js_StrafeCount[client] <= MAX_STRAFES ) {
+		if(0 < g_js_StrafeCount[client] <= MAX_STRAFES) {
 			g_js_Strafe_Frames[client][g_js_StrafeCount[client] - 1]++;
-			if( g_js_Strafe_Max_Speed[client][g_js_StrafeCount[client] - 1] < speed )
+			if(g_js_Strafe_Max_Speed[client][g_js_StrafeCount[client] - 1] < speed)
 				g_js_Strafe_Max_Speed[client][g_js_StrafeCount[client] - 1] = speed;
 		}
 	//total frames
@@ -1174,7 +1188,7 @@ public CalcJumpSync(client, float speed, float ang, &buttons) {
 }
 public WjJumpPreCheck(client, &buttons) {
 	if(GetEntityFlags(client) & FL_ONGROUND && g_js_bPlayerJumped[client] == false && g_js_GroundFrames[client] > 11) {
-		if (buttons & IN_JUMP)
+		if(buttons & IN_JUMP)
 			g_bLastButtonJump[client] = true;
 		else
 			g_bLastButtonJump[client] = false;
@@ -1183,21 +1197,21 @@ public WjJumpPreCheck(client, &buttons) {
 public BoosterCheck(client) {
 	float flbaseVelocity[3];
 	GetEntPropVector(client, Prop_Data, "m_vecBaseVelocity", flbaseVelocity);
-	if (flbaseVelocity[0] != 0.0 || flbaseVelocity[1] != 0.0 || flbaseVelocity[2] != 0.0 && g_js_bPlayerJumped[client])
+	if(flbaseVelocity[0] != 0.0 || flbaseVelocity[1] != 0.0 || flbaseVelocity[2] != 0.0 && g_js_bPlayerJumped[client])
 		ResetJump(client);
 }
 public WaterCheck(client) {
-	if (GetEntProp(client, Prop_Data, "m_nWaterLevel") > 0 && g_js_bPlayerJumped[client])
+	if(GetEntProp(client, Prop_Data, "m_nWaterLevel") > 0 && g_js_bPlayerJumped[client])
 		ResetJump(client);
 }
 public SurfCheck(client) {
-	if (g_js_bPlayerJumped[client] && WallCheck(client))
+	if(g_js_bPlayerJumped[client] && WallCheck(client))
 		ResetJump(client);
 }
 public NoClipCheck(client) {
 	MoveType mt = GetEntityMoveType(client);
 	if(mt == MOVETYPE_NOCLIP && (g_js_bPlayerJumped[client])) {
-		if (g_js_bPlayerJumped[client])
+		if(g_js_bPlayerJumped[client])
 			ResetJump(client);
 	}
 }
@@ -1220,7 +1234,7 @@ public bool WallCheck(client) {
 		if(TR_DidHit(trace)) {
 				TR_GetEndPosition(endpos, trace);
 				float fdist = GetVectorDistance(endpos, pos, false);
-				if (fdist <= 25.0) {
+				if(fdist <= 25.0) {
 					CloseHandle(trace);
 					return true;
 				}
@@ -1262,12 +1276,12 @@ bool TraceEntityFilterPlayer(entity, contentsMask) {
 }
 public GravityCheck(client) {
 	float flGravity = GetEntityGravity(client);
-	if ((flGravity != 0.0 && flGravity !=1.0) && g_js_bPlayerJumped[client])
+	if((flGravity != 0.0 && flGravity !=1.0) && g_js_bPlayerJumped[client])
 		ResetJump(client);
 }
 public Action Timer1(Handle timer) {
 	for (new client = 1; client <= MaxClients; client++) {
-		if (IsValidClient(client) && IsPlayerAlive(client))
+		if(IsValidClient(client) && IsPlayerAlive(client))
 			SurfCheck(client);
 	}
 	return Plugin_Continue;
@@ -1280,7 +1294,7 @@ stock TraceClientViewEntity(client) {
 	GetClientEyeAngles(client, m_angRotation);
 	Handle tr = TR_TraceRayFilterEx(m_vecOrigin, m_angRotation, MASK_VISIBLE, RayType_Infinite, TRDontHitSelf, client);
 	int pEntity = -1;
-	if (TR_DidHit(tr)) {
+	if(TR_DidHit(tr)) {
 		pEntity = TR_GetEntityIndex(tr);
 		CloseHandle(tr);
 		return pEntity;
@@ -1290,7 +1304,7 @@ stock TraceClientViewEntity(client) {
 }
 // thx to V952 https://forums.alliedmods.net/showthread.php?t=212886
 bool TRDontHitSelf(entity, any:data) { //, mask
-	if (entity == data)
+	if(entity == data)
 		return false;
 	return true;
 }
@@ -1304,9 +1318,9 @@ public Function_BlockJump(client) {
 //get aim target
 	char classname[32];
 	int target = TraceClientViewEntity(client);
-	if (IsValidEdict(target))
+	if(IsValidEdict(target))
 		GetEntityClassname(target, classname, 32);
-	if (StrEqual(classname,"func_movelinear"))
+	if(StrEqual(classname,"func_movelinear"))
 		funclinear=true;
 	if((FloatAbs(pos[2] - origin[2]) <= 0.002) || (funclinear && FloatAbs(pos[2] - origin[2]) <= 0.6)) {
 		GetBoxFromPoint(origin, g_fOriginBlock[client]);
@@ -1518,7 +1532,7 @@ CalculateBlockGap(client, float origin[3], float target[3]) {
 	g_BlockDist[client] = RoundToNearest(distance);
 	float surface = GetVectorDistance(g_fDestBlock[client][0],g_fDestBlock[client][1]);
 	surface *= surface;
-	if (surface > 1000000) {
+	if(surface > 1000000) {
 		CPrintToChat(client, "[{lightgreen}JS{default}] {red}Invalid destination (selected destination is too large)");
 		return;
 	}
@@ -1533,9 +1547,9 @@ CalculateBlockGap(client, float origin[3], float target[3]) {
 		CPrintToChat(client, "[{lightgreen}JS{default}] {lime}Longjump Block ({green}%i units{lime}) registered!", g_BlockDist[client]);
 		g_bLJBlock[client] = true;
 	}
-	else if (g_BlockDist[client] < 195)
+	else if(g_BlockDist[client] < 195)
 		CPrintToChat(client, "[{lightgreen}JS{default}] {red}You can only register blocks down to 196 units! (current gap: {darkred}%i units{red})", g_BlockDist[client]);
-	else if (g_BlockDist[client] > 320)
+	else if(g_BlockDist[client] > 320)
 		CPrintToChat(client, "[{lightgreen}JS{default}] {red}You can only register blocks up to 320 units! (current gap: {darkred}%i units{red})", g_BlockDist[client]);
 }
 // Credits: LJStats by justshoot, Zipcore
@@ -1550,7 +1564,7 @@ stock bool IsCoordInBlockPoint(const float origin[3], const float pos[2][3], boo
 	temp[0][1] += 16.0;
 	temp[1][0] -= 16.0;
 	temp[1][1] -= 16.0;
-	if (ignorez)
+	if(ignorez)
 		bZ=true;
 	if(temp[0][0] > temp[1][0]) {
 		if(temp[0][0] >= origin[0] >= temp[1][0])
@@ -1584,14 +1598,14 @@ public Prethink (client, float pos[3], float vel) {
 //booster or moving plattform?
 	float flVelocity[3];
 	GetEntPropVector(client, Prop_Data, "m_vecBaseVelocity", flVelocity);
-	if (flVelocity[0] != 0.0 || flVelocity[1] != 0.0 || flVelocity[2] != 0.0)
+	if(flVelocity[0] != 0.0 || flVelocity[1] != 0.0 || flVelocity[2] != 0.0)
 		g_js_bInvalidGround[client] = true;
 	else
 		g_js_bInvalidGround[client] = false;
 //reset vars
 	g_js_Good_Sync_Frames[client] = 0.0;
 	g_js_Sync_Frames[client] = 0.0;
-	for( new i = 0; i < MAX_STRAFES; i++ ) {
+	for(new i = 0; i < MAX_STRAFES; i++) {
 		g_js_Strafe_Good_Sync[client][i] = 0.0;
 		g_js_Strafe_Frames[client][i] = 0.0;
 		g_js_Strafe_Gained[client][i] = 0.0;
@@ -1612,16 +1626,16 @@ public Prethink (client, float pos[3], float vel) {
 	GetEntPropVector(client, Prop_Data, "m_vecVelocity", fVelocity);
 	g_js_fPreStrafe[client] = SquareRoot(Pow(fVelocity[0], 2.0) + Pow(fVelocity[1], 2.0) + Pow(fVelocity[2], 2.0));
 	GetGroundOrigin(client, g_js_fJump_JumpOff_Pos[client]);
-	if (g_js_fJump_JumpOff_PosLastHeight[client] != -1.012345) {
+	if(g_js_fJump_JumpOff_PosLastHeight[client] != -1.012345) {
 		float fGroundDiff = g_js_fJump_JumpOff_Pos[client][2] - g_js_fJump_JumpOff_PosLastHeight[client];
-		if (fGroundDiff > -0.1 && fGroundDiff < 0.1)
+		if(fGroundDiff > -0.1 && fGroundDiff < 0.1)
 			fGroundDiff = 0.0;
 		if(fGroundDiff <= -1.5) {
 			g_js_bDropJump[client] = true;
 			g_js_fDropped_Units[client] = FloatAbs(fGroundDiff);
 		}
 	}
-	if (g_js_GroundFrames[client]<11)
+	if(g_js_GroundFrames[client]<11)
 		g_js_bBhop[client] = true;
 	else
 		g_js_bBhop[client] = false;
@@ -1629,7 +1643,7 @@ public Prethink (client, float pos[3], float vel) {
 	g_js_fJump_JumpOff_PosLastHeight[client] = g_js_fJump_JumpOff_Pos[client][2];
 }
 public Postthink(client) {
-	if (!IsValidClient(client))
+	if(!IsValidClient(client))
 		return;
 	//PrintToChat(client, "1");
 	int ground_frames = g_js_GroundFrames[client];
@@ -1650,17 +1664,17 @@ public Postthink(client) {
 	//ground diff
 	float fGroundDiff = g_js_fJump_Landing_Pos[client][2] - g_js_fJump_JumpOff_Pos[client][2];
 	float fJump_Height;
-	if (fGroundDiff > -0.1 && fGroundDiff < 0.1)
+	if(fGroundDiff > -0.1 && fGroundDiff < 0.1)
 		fGroundDiff = 0.0;
 	//workaround
-	if (g_js_bFuncMoveLinear[client] && fGroundDiff < 0.6 && fGroundDiff > -0.6)
+	if(g_js_bFuncMoveLinear[client] && fGroundDiff < 0.6 && fGroundDiff > -0.6)
 		fGroundDiff = 0.0;
 	//ground diff 2
 	float groundpos[3];
 	GetClientAbsOrigin(client, groundpos);
 	float fGroundDiff2 = groundpos[2] - g_fLastPositionOnGround[client][2];
 	//GetHeight
-	if (FloatAbs(g_js_fJump_JumpOff_Pos[client][2]) > FloatAbs(g_js_fMax_Height[client]))
+	if(FloatAbs(g_js_fJump_JumpOff_Pos[client][2]) > FloatAbs(g_js_fMax_Height[client]))
 		fJump_Height = FloatAbs(g_js_fJump_JumpOff_Pos[client][2]) - FloatAbs(g_js_fMax_Height[client]);
 	else
 		fJump_Height = FloatAbs(g_js_fMax_Height[client]) - FloatAbs(g_js_fJump_JumpOff_Pos[client][2]);
@@ -1674,20 +1688,20 @@ public Postthink(client) {
 	char szStrafeSync2[255];
 	char szSteamID[128];
 	int strafe_sync;
-	if (g_iStrafeSync[client] == 1 && strafes > 1) {
+	if(g_iStrafeSync[client] == 1 && strafes > 1) {
 		for (new i = 0; i < strafes; i++) {
-			if (i==0)
+			if(i==0)
 				Format(szStrafeSync, 255, "[%cJS%c] %cSync:",MOSSGREEN,WHITE,GRAY);
-			if (g_js_Strafe_Frames[client][i] == 0.0 || g_js_Strafe_Good_Sync[client][i] == 0.0)
+			if(g_js_Strafe_Frames[client][i] == 0.0 || g_js_Strafe_Good_Sync[client][i] == 0.0)
 				strafe_sync = 0;
 			else
 				strafe_sync = RoundToNearest(g_js_Strafe_Good_Sync[client][i] / g_js_Strafe_Frames[client][i] * 100.0);
-			if (i==0)
+			if(i==0)
 				Format(szStrafeSync2, 255, " %c%i.%c %i%c",GRAY, (i+1),LIMEGREEN,strafe_sync,PERCENT);
 			else
 				Format(szStrafeSync2, 255, "%c - %i.%c %i%c",GRAY, (i+1),LIMEGREEN,strafe_sync,PERCENT);
 			StrCat(szStrafeSync, sizeof(szStrafeSync), szStrafeSync2);
-			if ((i+1) == strafes) {
+			if((i+1) == strafes) {
 				Format(szStrafeSync2, 255, " %c[%c%i%c%c]",GRAY,PURPLE, sync,PERCENT,GRAY);
 				StrCat(szStrafeSync, sizeof(szStrafeSync), szStrafeSync2);
 			}
@@ -1701,15 +1715,15 @@ public Postthink(client) {
 	//Format StrafeStats Console
 	if(strafes > 1) {
 		Format(szStrafeStats,1024, " #. Sync		Gained	  Lost		MaxSpeed\n");
-		for( new i = 0; i < strafes; i++ ) {
+		for(new i = 0; i < strafes; i++) {
 			int sync2 = RoundToNearest(g_js_Strafe_Good_Sync[client][i] / g_js_Strafe_Frames[client][i] * 100.0);
-			if (sync2 < 0)
+			if(sync2 < 0)
 				sync2 = 0;
-			if (g_js_Strafe_Gained[client][i] < 10.0)
+			if(g_js_Strafe_Gained[client][i] < 10.0)
 				Format(szGained,16, "%.3f ", g_js_Strafe_Gained[client][i]);
 			else
 				Format(szGained,16, "%.3f", g_js_Strafe_Gained[client][i]);
-			if (g_js_Strafe_Lost[client][i] < 10.0)
+			if(g_js_Strafe_Lost[client][i] < 10.0)
 				Format(szLost,16, "%.3f ", g_js_Strafe_Lost[client][i]);
 			else
 				Format(szLost,16, "%.3f", g_js_Strafe_Lost[client][i]);
@@ -1727,7 +1741,7 @@ public Postthink(client) {
 		Format(szStrafeStats,1024, "");
 	//PrintToChat(client, "2");
 	//vertical jump
-	if (fGroundDiff2 > 1.82 || fGroundDiff2 < -1.82 || fGroundDiff != 0.0) {
+	if(fGroundDiff2 > 1.82 || fGroundDiff2 < -1.82 || fGroundDiff != 0.0) {
 		Format(g_js_szLastJumpDistance[client], 256, "<font color='#948d8d'>vertical</font>");
 		PostThinkPost(client, ground_frames);
 		//PrintToChat(client, "%.3f, %.03f", fGroundDiff, fGroundDiff2);
@@ -1735,14 +1749,14 @@ public Postthink(client) {
 		return;
 	}
 	//invalid jump
-	if (g_fAirTime[client] > 0.83) {
+	if(g_fAirTime[client] > 0.83) {
 		Format(g_js_szLastJumpDistance[client], 256, "<font color='#948d8d'>invalid</font>");
 		PostThinkPost(client, ground_frames);
 		//PrintToChat(client, "5");
 		return;
 	}
 	//cheated jump
-	if (strafes >= MAX_JUMPSTRAFES) {
+	if(strafes >= MAX_JUMPSTRAFES) {
 		Format(g_js_szLastJumpDistance[client], 256, "<font color='#948d8d'>Too many strafes</font>");
 		PostThinkPost(client, ground_frames);
 		LogToFileEx(g_js_LogPath, "%s [JS] %s jumped %0.4f units with a Stat [%i Strafes | %.3f Pre | %.3f Max | Height %.1f | %i%c Sync]",szSteamID,szName, g_js_fJump_Distance[client],strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
@@ -1750,7 +1764,7 @@ public Postthink(client) {
 	}
 	//funk bug
 	for (new i = 0; i < strafes; i++) {
-		if (g_js_Strafe_Lost[client][i] >= 20 && !g_js_bBhop[client]) {
+		if(g_js_Strafe_Lost[client][i] >= 20 && !g_js_bBhop[client]) {
 			Format(g_js_szLastJumpDistance[client], 256, "<font color='#948d8d'>Possible Funk Bug</font>");
 			PostThinkPost(client, ground_frames);
 			return;
@@ -1758,7 +1772,7 @@ public Postthink(client) {
 	}
 	//silent strafe
 	for (new i = 0; i < strafes; i++) {
-		if (g_js_Strafe_Gained[client][i] >= 26 && !g_js_bBhop[client] && g_js_fJump_Distance[client] >= 262) {
+		if(g_js_Strafe_Gained[client][i] >= 26 && !g_js_bBhop[client] && g_js_fJump_Distance[client] >= 262) {
 			Format(g_js_szLastJumpDistance[client], 256, "<font color='#948d8d'>Possible Silent Strafe</font>");
 			PostThinkPost(client, ground_frames);
 			PrintToConsole(client, "%s", szStrafeStats);
@@ -1766,7 +1780,7 @@ public Postthink(client) {
 		}
 	}
 	//CT
-	if(GetClientTeam(client) == CS_TEAM_CT && g_iCTJumpStats == 0) {
+	if(GetClientTeam(client) == CS_TEAM_CT && g_iCTJumpStats == 1) {
 		Format(g_js_szLastJumpDistance[client], 256, "<font color='#948d8d'>T Only Statting Enabled</font>");
 		PostThinkPost(client, ground_frames);
 		return;
@@ -1775,12 +1789,12 @@ public Postthink(client) {
 	char sBuggedC[128];
 	//bug check
 	g_db_fDistance[client] = CalcJumpDistance(client);
-	if (g_db_fDistance[client] <= g_js_fJump_Distance[client]) {
+	if(g_db_fDistance[client] <= g_js_fJump_Distance[client]) {
 		g_bBuggedStat[client] = true;
 		Format(sBuggedDist, 128, "{default}[{purple}Bugged{default}]");
 		Format(sBuggedC, 128, "[Bugged]");
 	}
-	if (g_db_fDistance[client] > g_js_fJump_Distance[client]) {
+	if(g_db_fDistance[client] > g_js_fJump_Distance[client]) {
 		g_bBuggedStat[client] = false;
 		Format(sBuggedDist, 32, "");
 		Format(sBuggedC, 32, "");
@@ -1788,422 +1802,311 @@ public Postthink(client) {
 	bool touchwall = WallCheck(client);
 	bool ValidJump=true;
 	g_bCheatedJump[client] = false;
+//Ladder Bug fix            This should check if prestrafe is too high or low
+	if(g_iNoPreServer == 0 && 249.8 >= g_js_fPreStrafe[client] <= 250.2 && ground_frames > 11 && fGroundDiff == 0.0 && fJump_Height <= 66.0 && g_js_fJump_Distance[client] < g_fMaxLJ && g_js_fMax_Speed_Final[client] > 250.0)
+		return;
 //CheckIsLJ
-	if (g_js_fPreStrafe[client] < 277 && ground_frames > 11 && fGroundDiff == 0.0 && fJump_Height <= 66.0 && g_js_fJump_Distance[client] < g_fMaxLJ && g_js_fMax_Speed_Final[client] > 250.0) {
-		if (!touchwall && !(strafes > 16)) {
-			bool ljblock=false;
-			char sBlockDist[32];
-			Format(sBlockDist, 32, "");
-			char sBlockDistCon[32];
-			Format(sBlockDistCon, 32, "");
-			if(g_bLJBlock[client] && g_BlockDist[client] > 225 && g_js_fJump_Distance[client] >= float(g_BlockDist[client])) {
-				if (g_bLJBlockValidJumpoff[client]) {
-					if (g_bLjStarDest[client]) {
-						if (IsCoordInBlockPoint(g_js_fJump_Landing_Pos[client],g_fOriginBlock[client],true)) {
-							Format(sBlockDist, 32, "%t", "LjBlock", GRAY,YELLOW,g_BlockDist[client],GRAY);
-							Format(sBlockDistCon, 32, " [%i block]", g_BlockDist[client]);
-							ljblock=true;
-						}
-					} else if(IsCoordInBlockPoint(g_js_fJump_Landing_Pos[client],g_fDestBlock[client],true)) {
+	if(g_iNoPreServer == 1 && g_js_fPreStrafe[client] < 277 && ground_frames > 11 && fGroundDiff == 0.0 && fJump_Height <= 66.0 && g_js_fJump_Distance[client] < g_fMaxLJ && g_js_fMax_Speed_Final[client] > 250.0 && !touchwall && !(strafes > MAX_JUMPSTRAFES)) {
+		//strcopy(StatType[64], sizeof(StatType), "LJ");
+		bool ljblock=false;
+		char sBlockDist[32];
+		Format(sBlockDist, 32, "");
+		char sBlockDistCon[32];
+		Format(sBlockDistCon, 32, "");
+		if(g_bLJBlock[client] && g_BlockDist[client] > 225 && g_js_fJump_Distance[client] >= float(g_BlockDist[client])) {
+			if(g_bLJBlockValidJumpoff[client]) {
+				if(g_bLjStarDest[client]) {
+					if(IsCoordInBlockPoint(g_js_fJump_Landing_Pos[client],g_fOriginBlock[client],true)) {
 						Format(sBlockDist, 32, "%t", "LjBlock", GRAY,YELLOW,g_BlockDist[client],GRAY);
 						Format(sBlockDistCon, 32, " [%i block]", g_BlockDist[client]);
 						ljblock=true;
 					}
+				} else if(IsCoordInBlockPoint(g_js_fJump_Landing_Pos[client],g_fDestBlock[client],true)) {
+					Format(sBlockDist, 32, "%t", "LjBlock", GRAY,YELLOW,g_BlockDist[client],GRAY);
+					Format(sBlockDistCon, 32, " [%i block]", g_BlockDist[client]);
+					ljblock=true;
 				}
 			}
-			PrintToConsole(client, "		");
-			PrintToConsole(client, "[JS] %s jumped %0.4f units with a %sLongJump [%i Strafes | %.3f %s | %.0f Max | Height %.1f | %i%c Sync]%s",szName, g_js_fJump_Distance[client],sBuggedC,strafes, g_js_fPreStrafe[client], "Pre", g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT,sBlockDistCon);
-			PrintToConsole(client, "%s", szStrafeStats);
-			g_bLJ[client]=true;
-			if (g_fGreyLJ <= g_js_fJump_Distance[client] < g_fGreenLJ) {
-				CPrintToChat(client, "[{lightgreen}JS{default}] {grey}LJ{default}: {purple}%s{grey}%.2f units {default}[{grey}%i{default} Strafes | {grey}%.0f{default} Pre | {grey}%.0f{default} Max | {grey}%.0f{default} Height | {grey}%i%s{default} Sync]%s",sBuggedDist,g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT,sBlockDist);
-				GreyStat(client);
-			}
-			if (g_fGreenLJ <= g_js_fJump_Distance[client] < g_fBlueLJ) {
-				CPrintToChat(client, "[{lightgreen}JS{default}] {green}LJ{default}: {purple}%s{green}%.2f units {default}[{green}%i{default} Strafes | {green}%.0f{default} Pre | {green}%.0f{default} Max | {green}%.0f{default} Height | {green}%i%s{default} Sync]%s",sBuggedDist,g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT,sBlockDist);
-				GreenStat(client);
-			//all chat
-				for (new i = 1; i <= MaxClients; i++) {
-					if (IsValidClient(i)) {
-						if (g_iColorChat[i] == 1 && i != client)
-							CPrintToChat(i, "[{lightgreen}JS{default}] {green}%s{lightgreen} jumped {green}%.3f units {lightgreen}with a {green}LongJump%s%s",szName,g_js_fJump_Distance[client],sBuggedDist,sBlockDist);
-					}
+		}
+		PrintToConsole(client, "		");
+		PrintToConsole(client, "[JS] %s jumped %0.4f units with a %sLongJump [%i Strafes | %.3f %s | %.0f Max | Height %.1f | %i%c Sync]%s",szName, g_js_fJump_Distance[client],sBuggedC,strafes, g_js_fPreStrafe[client], "Pre", g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT,sBlockDistCon);
+		PrintToConsole(client, "%s", szStrafeStats);
+		g_bLJ[client]=true;
+		if(g_fGreyLJ <= g_js_fJump_Distance[client] < g_fGreenLJ) {
+			CPrintToChat(client, "[{lightgreen}JS{default}] {grey}LJ{default}: {purple}%s{grey}%.2f units {default}[{grey}%i{default} Strafes | {grey}%.0f{default} Pre | {grey}%.0f{default} Max | {grey}%.0f{default} Height | {grey}%i%s{default} Sync]%s",sBuggedDist,g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT,sBlockDist);
+			GreyStat(client);
+		}
+		else if(g_fGreenLJ <= g_js_fJump_Distance[client] < g_fBlueLJ) {
+			CPrintToChat(client, "[{lightgreen}JS{default}] {green}LJ{default}: {purple}%s{green}%.2f units {default}[{green}%i{default} Strafes | {green}%.0f{default} Pre | {green}%.0f{default} Max | {green}%.0f{default} Height | {green}%i%s{default} Sync]%s",sBuggedDist,g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT,sBlockDist);
+			GreenStat(client);
+		//all chat
+			for (new i = 1; i <= MaxClients; i++) {
+				if(IsValidClient(i)) {
+					if(g_iColorChat[i] == 1 && i != client)
+						CPrintToChat(i, "[{lightgreen}JS{default}] {green}%s{lightgreen} jumped {green}%.3f units {lightgreen}with a {green}LJ%s%s",szName,g_js_fJump_Distance[client],sBuggedDist,sBlockDist);
 				}
 			}
-			if (g_fBlueLJ <= g_js_fJump_Distance[client] < g_fRedLJ) {
-				CPrintToChat(client, "[{lightgreen}JS{default}] \x0CLJ{default}: {purple}%s\x0C%.2f units {default}[{blue}%i{default} Strafes | {blue}%.0f{default} Pre | {blue}%.0f{default} Max | {blue}%.0f{default} Height | {blue}%i%s{default} Sync]%s",sBuggedDist,g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT,sBlockDist);
-				BlueStat(client);
-			//all chat
-				for (new i = 1; i <= MaxClients; i++) {
-					if (IsValidClient(i)) {
-						if (g_iColorChat[i] == 1 && i != client)
-							CPrintToChat(i, "[{lightgreen}JS{default}] \x0C%s{blue} jumped \x0C%.3f units {blue}with a \x0CLongJump%s%s",szName,g_js_fJump_Distance[client],sBuggedDist,sBlockDist);
-					}
+		}
+		else if(g_fBlueLJ <= g_js_fJump_Distance[client] < g_fRedLJ) {
+			CPrintToChat(client, "[{lightgreen}JS{default}] \x0CLJ{default}: {purple}%s\x0C%.2f units {default}[{blue}%i{default} Strafes | {blue}%.0f{default} Pre | {blue}%.0f{default} Max | {blue}%.0f{default} Height | {blue}%i%s{default} Sync]%s",sBuggedDist,g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT,sBlockDist);
+			BlueStat(client);
+		//all chat
+			for (new i = 1; i <= MaxClients; i++) {
+				if(IsValidClient(i)) {
+					if(g_iColorChat[i] == 1 && i != client)
+						CPrintToChat(i, "[{lightgreen}JS{default}] \x0C%s{blue} jumped \x0C%.3f units {blue}with a \x0CLJ%s%s",szName,g_js_fJump_Distance[client],sBuggedDist,sBlockDist);
 				}
 			}
-			if (g_fRedLJ <= g_js_fJump_Distance[client] < g_fGoldLJ) {
-				CPrintToChat(client, "[{lightgreen}JS{default}] {darkred}LJ{default}: {purple}%s{darkred}%.2f units {default}[{red}%i{default} Strafes | {red}%.0f{default} Pre | {red}%.0f{default} Max | {red}%.0f{default} Height | {red}%i%s{default} Sync]%s",sBuggedDist,g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT,sBlockDist);
-				RedStat(client);
-			//all chat
-				for (new i = 1; i <= MaxClients; i++) {
-					if (IsValidClient(i)) {
-						if (g_iColorChat[i] == 1 && i != client)
-							CPrintToChat(i, "[{lightgreen}JS{default}] {darkred}%s{red} jumped {darkred}%.3f units {red}with a {darkred}LongJump%s%s",szName,g_js_fJump_Distance[client],sBuggedDist,sBlockDist);
-					}
+		}
+		else if(g_fRedLJ <= g_js_fJump_Distance[client] < g_fGoldLJ) {
+			CPrintToChat(client, "[{lightgreen}JS{default}] {darkred}LJ{default}: {purple}%s{darkred}%.2f units {default}[{red}%i{default} Strafes | {red}%.0f{default} Pre | {red}%.0f{default} Max | {red}%.0f{default} Height | {red}%i%s{default} Sync]%s",sBuggedDist,g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT,sBlockDist);
+			RedStat(client);
+		//all chat
+			for (new i = 1; i <= MaxClients; i++) {
+				if(IsValidClient(i)) {
+					if(g_iColorChat[i] == 1 && i != client)
+						CPrintToChat(i, "[{lightgreen}JS{default}] {darkred}%s{red} jumped {darkred}%.3f units {red}with a {darkred}LJ%s%s",szName,g_js_fJump_Distance[client],sBuggedDist,sBlockDist);
 				}
 			}
-			if (g_fGoldLJ <= g_js_fJump_Distance[client] < g_fMaxLJ && !(strafes <= 6)) {
-				CPrintToChat(client, "[{lightgreen}JS{default}] \x10LJ{default}: {purple}%s\x10%.2f units {default}[{olive}%i{default} Strafes | {olive}%.0f{default} Pre | {olive}%.0f{default} Max | {olive}%.0f{default} Height | {olive}%i%s{default} Sync]%s",sBuggedDist,g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT,sBlockDist);
-				GoldStat(client);
-			//all chat
-				for (new i = 1; i <= MaxClients; i++) {
-					if (IsValidClient(i)) {
-						if (g_iColorChat[i] == 1 && i != client)
-							CPrintToChat(i, "[{lightgreen}JS{default}] \x10%s{olive} jumped \x10%.3f units {olive}with a \x10LongJump%s%s",szName,g_js_fJump_Distance[client],sBuggedDist,sBlockDist);
-					}
+		}
+		else if(g_fGoldLJ <= g_js_fJump_Distance[client] < g_fMaxLJ && !(strafes <= 6)) {
+			CPrintToChat(client, "[{lightgreen}JS{default}] \x10LJ{default}: {purple}%s\x10%.2f units {default}[{olive}%i{default} Strafes | {olive}%.0f{default} Pre | {olive}%.0f{default} Max | {olive}%.0f{default} Height | {olive}%i%s{default} Sync]%s",sBuggedDist,g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT,sBlockDist);
+			GoldStat(client);
+		//all chat
+			for (new i = 1; i <= MaxClients; i++) {
+				if(IsValidClient(i)) {
+					if(g_iColorChat[i] == 1 && i != client)
+						CPrintToChat(i, "[{lightgreen}JS{default}] \x10%s{olive} jumped \x10%.3f units {olive}with a \x10LJ%s%s",szName,g_js_fJump_Distance[client],sBuggedDist,sBlockDist);
 				}
 			}
-			else if (g_fGoldLJ <= g_js_fJump_Distance[client] < g_fMaxLJ && strafes <= 6) {
-				g_bCheatedJump[client] = true;
-				PrintToChat(client, "%t", "ClientLongJump3",MOSSGREEN,WHITE,ORANGE,GRAY,ORANGE,g_js_fJump_Distance[client],GRAY,YELLOW,strafes,GRAY,YELLOW,g_js_fPreStrafe[client],GRAY,YELLOW, g_js_fMax_Speed_Final[client],GRAY,YELLOW, fJump_Height,GRAY,YELLOW, sync,PERCENT,GRAY,sBlockDist);
-				LogToFileEx(g_js_LogPath, "%s [JS] %s jumped %0.4f units with a LongJump [%i Strafes | %.3f Pre | %.0f Max | Height %.1f | %i%c Sync]%s",szSteamID,szName, g_js_fJump_Distance[client],strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT,sBlockDistCon);
-			}
-			if (g_fMaxLJ <= g_js_fJump_Distance[client]) {
-				LogToFileEx(g_js_LogPath, "%s [JS] %s jumped %0.4f units with a LongJump [%i Strafes | %.3f Pre | %.0f Max | Height %.1f | %i%c Sync]%s",szSteamID,szName, g_js_fJump_Distance[client],strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT,sBlockDistCon);
-				g_bCheatedJump[client] = true;
-			}
-			if (g_js_fPersonal_Lj_Record[client] < g_js_fJump_Distance[client] && g_bBuggedStat[client] == false && g_bCheatedJump[client] == false) {
-				CPrintToChat(client, "[{lightgreen}JS{default}] {olive}You beat your personal best LongJump with a %.3f", g_js_fJump_Distance[client]);
-				g_js_fPersonal_Lj_Record[client] = g_js_fJump_Distance[client];
-				db_updateLjRecord(client);
-				CreateTimer(0.2, Top3CheckDelay, client);
-				g_js_fMoneyDist[client] = g_js_fPersonal_Lj_Record[client]*100;
-				g_iMoneyPB[client] = RoundToNearest(g_js_fMoneyDist[client]);
-				SetClientMoney(client, g_iMoneyPB[client]);
-				char sCookie[128];
-				IntToString(g_iMoneyPB[client], sCookie, sizeof(sCookie));
-				SetClientCookie(client, g_hMoneyCookie, sCookie);
-			}
-			if (g_js_fJump_Distance[client] > g_js_fBuggedPersonal_Lj_Record[client] && g_bBuggedStat[client] && g_bCheatedJump[client] == false) {
-				g_js_fBuggedPersonal_Lj_Record[client] = g_js_fJump_Distance[client];
-				CPrintToChat(client, "[{lightgreen}JS{default}] {olive}You beat your personal best Bugged LongJump with a %.3f", g_js_fJump_Distance[client]);
-				db_BupdateLjRecord(client);
-				CreateTimer(0.2, Top3CheckDelay, client);
-      }
-			if (ljblock && g_js_Personal_LjBlock_Record[client] <= g_BlockDist[client] && g_bCheatedJump[client] == false) {
-				CPrintToChat(client, "[{lightgreen}JS{default}] {olive}You beat your personal best Block LongJump with a %.3f", g_js_fJump_Distance[client]);
-				g_js_Personal_LjBlock_Record[client] = g_BlockDist[client];
-				g_js_fPersonal_LjBlockRecord_Dist[client] = g_js_fJump_Distance[client];
-				db_updateLjBlockRecord(client);
-				CreateTimer(0.2, Top3CheckDelay, client);
-			}
+		}
+		else if(g_fGoldLJ <= g_js_fJump_Distance[client] < g_fMaxLJ && strafes <= 6) {
+			g_bCheatedJump[client] = true;
+			CPrintToChat(client, "[{lightgreen}JS{default}] \x10LJ{default}: {purple}%s\x10%.2f units {default}[{olive}%i{default} Strafes | {olive}%.0f{default} Pre | {olive}%.0f{default} Max | {olive}%.0f{default} Height | {olive}%i%s{default} Sync]%s",sBuggedDist,g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT,sBlockDist);
+			LogToFileEx(g_js_LogPath, "%s [JS] %s jumped %0.4f units with a LongJump [%i Strafes | %.3f Pre | %.0f Max | Height %.1f | %i%c Sync]%s",szSteamID,szName, g_js_fJump_Distance[client],strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT,sBlockDistCon);
+		}
+		else if(g_fMaxLJ <= g_js_fJump_Distance[client]) {
+			LogToFileEx(g_js_LogPath, "%s [JS] %s jumped %0.4f units with a LongJump [%i Strafes | %.3f Pre | %.0f Max | Height %.1f | %i%c Sync]%s",szSteamID,szName, g_js_fJump_Distance[client],strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT,sBlockDistCon);
+			g_bCheatedJump[client] = true;
+		}
+		if(g_js_fPersonal_Lj_Record[client] < g_js_fJump_Distance[client] && g_bBuggedStat[client] == false && g_bCheatedJump[client] == false) {
+			CPrintToChat(client, "[{lightgreen}JS{default}] {olive}You beat your personal best LongJump with a %.3f", g_js_fJump_Distance[client]);
+			g_js_fPersonal_Lj_Record[client] = g_js_fJump_Distance[client];
+			db_updateLjRecord(client);
+			CreateTimer(0.2, Top3CheckDelay, client);
+			g_js_fMoneyDist[client] = g_js_fPersonal_Lj_Record[client]*100;
+			g_iMoneyPB[client] = RoundToNearest(g_js_fMoneyDist[client]);
+			SetClientMoney(client, g_iMoneyPB[client]);
+			char sCookie[128];
+			IntToString(g_iMoneyPB[client], sCookie, sizeof(sCookie));
+			SetClientCookie(client, g_hMoneyCookie, sCookie);
+		}
+		if(g_js_fJump_Distance[client] > g_js_fBuggedPersonal_Lj_Record[client] && g_bBuggedStat[client] && g_bCheatedJump[client] == false) {
+			g_js_fBuggedPersonal_Lj_Record[client] = g_js_fJump_Distance[client];
+			CPrintToChat(client, "[{lightgreen}JS{default}] {olive}You beat your personal best Bugged LongJump with a %.3f", g_js_fJump_Distance[client]);
+			db_BupdateLjRecord(client);
+			CreateTimer(0.2, Top3CheckDelay, client);
+		}
+		if(ljblock && g_js_Personal_LjBlock_Record[client] <= g_BlockDist[client] && g_bCheatedJump[client] == false) {
+			CPrintToChat(client, "[{lightgreen}JS{default}] {olive}You beat your personal best Block LongJump with a %.3f", g_js_fJump_Distance[client]);
+			g_js_Personal_LjBlock_Record[client] = g_BlockDist[client];
+			g_js_fPersonal_LjBlockRecord_Dist[client] = g_js_fJump_Distance[client];
+			db_updateLjBlockRecord(client);
+			CreateTimer(0.2, Top3CheckDelay, client);
 		}
 	}
 //CheckIsWJ
-	if (g_js_bBhop[client] && ValidJump && ground_frames < 11 && !g_bLastButtonJump[client] && fGroundDiff == 0.0 && fJump_Height <= 68.0 && g_js_bDropJump[client] && g_js_fDropped_Units[client] <= 132.0) {
-		if (!touchwall) {
-			PrintToConsole(client, "		");
-			PrintToConsole(client, "[JS] %s jumped %0.4f units with a %sWeirdJump [%i Strafes | %.3f Pre | %.3f Max | Height %.1f | %i%c Sync]",szName, g_js_fJump_Distance[client],sBuggedC,strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
-			PrintToConsole(client, "%s", szStrafeStats);
-			g_bWJ[client]=true;
-			if (g_fGreyWJ <= g_js_fJump_Distance[client] < g_fGreenWJ) {
-				PrintToChat(client, "%t", "ClientWeirdJump1",MOSSGREEN,WHITE, GRAY,g_js_fJump_Distance[client],GRAY, strafes, GRAY, GRAY, g_js_fPreStrafe[client], GRAY, GRAY,fJump_Height,GRAY, GRAY, sync,PERCENT,GRAY);
-				GreyStat(client);
-			}
-			if (g_fGreenWJ <= g_js_fJump_Distance[client] < g_fBlueWJ) {
-				PrintToChat(client, "%t", "ClientWeirdJump2",MOSSGREEN,WHITE,GREEN,GRAY,GREEN,g_js_fJump_Distance[client],GRAY,LIMEGREEN,strafes,GRAY,LIMEGREEN,g_js_fPreStrafe[client],GRAY,LIMEGREEN, g_js_fMax_Speed_Final[client],GRAY,LIMEGREEN,fJump_Height,GRAY, LIMEGREEN, sync,PERCENT,GRAY);
-				GreenStat(client);
-			//all chat
-				for (new i = 1; i <= MaxClients; i++) {
-					if (IsValidClient(i)) {
-						if (g_iColorChat[i] == 1 && i != client)
-							PrintToChat(i, "%t", "Jumpstats_WeirdAll",MOSSGREEN,WHITE,GREEN,szName, MOSSGREEN,GREEN, g_js_fJump_Distance[client],MOSSGREEN,GREEN);
-					}
-				}
-			}
-			if (g_fBlueWJ <= g_js_fJump_Distance[client] < g_fRedWJ) {
-				PrintToChat(client, "%t", "ClientWeirdJump2",MOSSGREEN,WHITE,DARKBLUE,GRAY,DARKBLUE,g_js_fJump_Distance[client],GRAY,BLUE,strafes,GRAY,BLUE,g_js_fPreStrafe[client],GRAY,BLUE, g_js_fMax_Speed_Final[client],GRAY,BLUE,fJump_Height,GRAY, BLUE, sync,PERCENT,GRAY);
-				BlueStat(client);
-			//all chat
-				for (new i = 1; i <= MaxClients; i++) {
-					if (IsValidClient(i)) {
-						if (g_iColorChat[i] == 1 && i != client)
-							PrintToChat(i, "%t", "Jumpstats_WeirdAll",MOSSGREEN,WHITE,DARKBLUE,szName, BLUE,DARKBLUE, g_js_fJump_Distance[client],BLUE,DARKBLUE);
-					}
-				}
-			}
-			if (g_fRedWJ <= g_js_fJump_Distance[client] < g_fGoldWJ) {
-				PrintToChat(client, "%t", "ClientWeirdJump2",MOSSGREEN,WHITE,DARKRED,GRAY,DARKRED,g_js_fJump_Distance[client],GRAY,RED,strafes,GRAY,RED,g_js_fPreStrafe[client],GRAY,RED, g_js_fMax_Speed_Final[client],GRAY,RED,fJump_Height,GRAY, RED, sync,PERCENT,GRAY);
-				RedStat(client);
-			//all chat
-				for (new i = 1; i <= MaxClients; i++) {
-					if (IsValidClient(i)) {
-						if (g_iColorChat[i] == 1 && i != client)
-							PrintToChat(i, "%t", "Jumpstats_WeirdAll",MOSSGREEN,WHITE,DARKRED,szName, RED,DARKRED, g_js_fJump_Distance[client],RED,DARKRED);
-					}
-				}
-			}
-			if (g_fGoldWJ <= g_js_fJump_Distance[client] < g_fMaxWJ && !(strafes <= 6)) {
-				PrintToChat(client, "%t", "ClientWeirdJump2",MOSSGREEN,WHITE,ORANGE,GRAY,ORANGE,g_js_fJump_Distance[client],GRAY,YELLOW,strafes,GRAY,YELLOW,g_js_fPreStrafe[client],GRAY,YELLOW,g_js_fMax_Speed_Final[client],GRAY,YELLOW, fJump_Height,GRAY, YELLOW,GRAY,YELLOW, sync,PERCENT,GRAY);
-				GoldStat(client);
-			//all chat
-				for (new i = 1; i <= MaxClients; i++) {
-					if (IsValidClient(i)) {
-						if (g_iColorChat[i] == 1 && i != client)
-							PrintToChat(i, "%t", "Jumpstats_WeirdJumpAll",MOSSGREEN,WHITE,ORANGE,szName, YELLOW,ORANGE, g_js_fJump_Distance[client],YELLOW,ORANGE);
-					}
-				}
-			}
-			else if (g_fGoldWJ <= g_js_fJump_Distance[client] < g_fMaxWJ && strafes <= 6) {
-				g_bCheatedJump[client] = true;
-				PrintToChat(client, "%t", "ClientWeirdJump2",MOSSGREEN,WHITE,ORANGE,GRAY,ORANGE,g_js_fJump_Distance[client],GRAY,YELLOW,strafes,GRAY,YELLOW,g_js_fPreStrafe[client],GRAY,YELLOW,g_js_fMax_Speed_Final[client],GRAY,YELLOW, fJump_Height,GRAY, YELLOW,GRAY,YELLOW, sync,PERCENT,GRAY);
-				LogToFileEx(g_js_LogPath, "%s [JS] %s jumped %0.4f units with a Stat [%i Strafes | %.3f Pre | %.3f Max | Height %.1f | %i%c Sync]",szSteamID,szName, g_js_fJump_Distance[client],strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
-			}
-			if (g_fMaxWJ <= g_js_fJump_Distance[client]) {
-				LogToFileEx(g_js_LogPath, "%s [JS] %s jumped %0.4f units with a WeirdJump [%i Strafes | %.3f Pre | %.3f Max | Height %.1f | %i%c Sync]",szSteamID,szName, g_js_fJump_Distance[client],strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
-				g_bCheatedJump[client] = true;
-			}
+	else if(g_js_bBhop[client] && ValidJump && ground_frames < 11 && !g_bLastButtonJump[client] && fGroundDiff == 0.0 && fJump_Height <= 68.0 && g_js_bDropJump[client] && g_js_fDropped_Units[client] <= 132.0 && !touchwall) {
+		Format(StatType[0], 128, "WJ");
+		PrintToConsole(client, "		");
+		PrintToConsole(client, "[JS] %s jumped %0.4f units with a %sWeirdJump [%i Strafes | %.3f Pre | %.3f Max | Height %.1f | %i%c Sync]",szName, g_js_fJump_Distance[client],sBuggedC,strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
+		PrintToConsole(client, "%s", szStrafeStats);
+		g_bWJ[client]=true;
+		if(g_fGreyWJ <= g_js_fJump_Distance[client] < g_fGreenWJ) {
+			//PrintToChat(client, "%t", "ClientWeirdJump1",MOSSGREEN,WHITE, GRAY,g_js_fJump_Distance[client],GRAY, strafes, GRAY, GRAY, g_js_fPreStrafe[client], GRAY, GRAY,fJump_Height,GRAY, GRAY, sync,PERCENT,GRAY);
+			CPrintToChat(client, "[{lightgreen}JS{default}] {grey}WJ{default}: {grey}%.2f units {default}[{grey}%i{default} Strafes | {grey}%.0f{default} Pre | {grey}%.0f{default} Max | {grey}%.0f{default} Height | {grey}%i%s{default} Sync]",g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
+			GreyStat(client);
+		}
+		else if(g_fGreenWJ <= g_js_fJump_Distance[client] < g_fBlueWJ) {
+			//PrintToChat(client, "%t", "ClientWeirdJump2",MOSSGREEN,WHITE,GREEN,GRAY,GREEN,g_js_fJump_Distance[client],GRAY,LIMEGREEN,strafes,GRAY,LIMEGREEN,g_js_fPreStrafe[client],GRAY,LIMEGREEN, g_js_fMax_Speed_Final[client],GRAY,LIMEGREEN,fJump_Height,GRAY, LIMEGREEN, sync,PERCENT,GRAY);
+			CPrintToChat(client, "[{lightgreen}JS{default}] {green}WJ{default}: {green}%.2f units {default}[{green}%i{default} Strafes | {green}%.0f{default} Pre | {green}%.0f{default} Max | {green}%.0f{default} Height | {green}%i%s{default} Sync]",g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
+			GreenStat(client);
+		}
+		else if(g_fBlueWJ <= g_js_fJump_Distance[client] < g_fRedWJ) {
+			//PrintToChat(client, "%t", "ClientWeirdJump2",MOSSGREEN,WHITE,DARKBLUE,GRAY,DARKBLUE,g_js_fJump_Distance[client],GRAY,BLUE,strafes,GRAY,BLUE,g_js_fPreStrafe[client],GRAY,BLUE, g_js_fMax_Speed_Final[client],GRAY,BLUE,fJump_Height,GRAY, BLUE, sync,PERCENT,GRAY);
+			CPrintToChat(client, "[{lightgreen}JS{default}] \x0CWJ{default}: \x0C%.2f units {default}[{blue}%i{default} Strafes | {blue}%.0f{default} Pre | {blue}%.0f{default} Max | {blue}%.0f{default} Height | {blue}%i%s{default} Sync]",g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
+			BlueStat(client);
+		}
+		else if(g_fRedWJ <= g_js_fJump_Distance[client] < g_fGoldWJ) {
+			//PrintToChat(client, "%t", "ClientWeirdJump2",MOSSGREEN,WHITE,DARKRED,GRAY,DARKRED,g_js_fJump_Distance[client],GRAY,RED,strafes,GRAY,RED,g_js_fPreStrafe[client],GRAY,RED, g_js_fMax_Speed_Final[client],GRAY,RED,fJump_Height,GRAY, RED, sync,PERCENT,GRAY);
+			CPrintToChat(client, "[{lightgreen}JS{default}] {darkred}WJ{default}: {darkred}%.2f units {default}[{red}%i{default} Strafes | {red}%.0f{default} Pre | {red}%.0f{default} Max | {red}%.0f{default} Height | {red}%i%s{default} Sync]",g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
+			RedStat(client);
+		}
+		else if(g_fGoldWJ <= g_js_fJump_Distance[client] < g_fMaxWJ && !(strafes <= 6)) {
+			//PrintToChat(client, "%t", "ClientWeirdJump2",MOSSGREEN,WHITE,ORANGE,GRAY,ORANGE,g_js_fJump_Distance[client],GRAY,YELLOW,strafes,GRAY,YELLOW,g_js_fPreStrafe[client],GRAY,YELLOW,g_js_fMax_Speed_Final[client],GRAY,YELLOW, fJump_Height,GRAY, YELLOW,GRAY,YELLOW, sync,PERCENT,GRAY);
+			CPrintToChat(client, "[{lightgreen}JS{default}] \x10WJ{default}: \x10%.2f units {default}[{olive}%i{default} Strafes | {olive}%.0f{default} Pre | {olive}%.0f{default} Max | {olive}%.0f{default} Height | {olive}%i%s{default} Sync]",g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
+			GoldStat(client);
+		}
+		else if(g_fGoldWJ <= g_js_fJump_Distance[client] < g_fMaxWJ && strafes <= 6) {
+			g_bCheatedJump[client] = true;
+			CPrintToChat(client, "[{lightgreen}JS{default}] \x10WJ{default}: \x10%.2f units {default}[{olive}%i{default} Strafes | {olive}%.0f{default} Pre | {olive}%.0f{default} Max | {olive}%.0f{default} Height | {olive}%i%s{default} Sync]",g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
+			LogToFileEx(g_js_LogPath, "%s [JS] %s jumped %0.4f units with a WeirdJump [%i Strafes | %.3f Pre | %.3f Max | Height %.1f | %i%c Sync]",szSteamID,szName, g_js_fJump_Distance[client],strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
+		}
+		if(g_fMaxWJ <= g_js_fJump_Distance[client]) {
+			LogToFileEx(g_js_LogPath, "%s [JS] %s jumped %0.4f units with a WeirdJump [%i Strafes | %.3f Pre | %.3f Max | Height %.1f | %i%c Sync]",szSteamID,szName, g_js_fJump_Distance[client],strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
+			g_bCheatedJump[client] = true;
 		}
 	}
 //CheckIsBhop
-	if (g_js_bBhop[client] && ValidJump && ground_frames < 11 && g_js_Last_Ground_Frames[client] > 10 && fGroundDiff == 0.0 && fJump_Height <= 68.0 && !g_js_bDropJump[client] && g_js_fPreStrafe[client] > 250.1) {
-		if (!touchwall) {
-			PrintToConsole(client, "		");
-			PrintToConsole(client, "[JS] %s jumped %0.4f units with a %sBhop [%i Strafes | %.3f Pre | %.3f Max | Height %.1f | %i%c Sync]",szName, g_js_fJump_Distance[client],sBuggedC,strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
-			PrintToConsole(client, "%s", szStrafeStats);
-			g_bBhop[client]=true;
-			if (g_fGreyBHOP <= g_js_fJump_Distance[client] < g_fGreenBHOP) {
-				PrintToChat(client, "%t", "ClientBunnyhop1",MOSSGREEN,WHITE,GRAY, g_js_fJump_Distance[client],GRAY, strafes, GRAY, GRAY, g_js_fPreStrafe[client], GRAY, GRAY, fJump_Height,GRAY, GRAY, sync,PERCENT,GRAY);
-				GreyStat(client);
-			}
-			if (g_fGreenBHOP <= g_js_fJump_Distance[client] < g_fBlueBHOP) {
-				PrintToChat(client, "%t", "ClientBunnyhop2",MOSSGREEN,WHITE,GREEN,GRAY,GREEN,g_js_fJump_Distance[client],GRAY,LIMEGREEN,strafes,GRAY,LIMEGREEN,g_js_fPreStrafe[client],GRAY,LIMEGREEN, g_js_fMax_Speed_Final[client],GRAY,LIMEGREEN, fJump_Height,GRAY, LIMEGREEN, sync,PERCENT,GRAY);
-				GreenStat(client);
-			//all chat
-				for (new i = 1; i <= MaxClients; i++) {
-					if (IsValidClient(i)) {
-						if (g_iColorChat[i] == 1 && i != client)
-							PrintToChat(i, "%t", "Jumpstats_BhopAll",MOSSGREEN,WHITE,GREEN,szName, MOSSGREEN,GREEN, g_js_fJump_Distance[client],MOSSGREEN,GREEN);
-					}
-				}
-			}
-			if (g_fBlueBHOP <= g_js_fJump_Distance[client] < g_fRedBHOP) {
-				CPrintToChat(client, "[{lightgreen}JS{default}] \x0CBhop{default}: \x0C%.2f units{grey} [{blue} %i {default}Strafes | {blue}%.0f {default}Pre | {blue}%.0f {default}Max | {blue}%.0f {default}Height | {blue}%i%s {default}Sync]",g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
-				BlueStat(client);
-			//all chat
-				for (new i = 1; i <= MaxClients; i++) {
-					if (IsValidClient(i)) {
-						if (g_iColorChat[i] == 1 && i != client)
-							PrintToChat(i, "%t", "Jumpstats_BhopAll",MOSSGREEN,WHITE,DARKBLUE,szName, BLUE,DARKBLUE, g_js_fJump_Distance[client],BLUE,DARKBLUE);
-					}
-				}
-			}
-			if (g_fRedBHOP <= g_js_fJump_Distance[client] < g_fGoldBHOP) {
-				PrintToChat(client, "%t", "ClientBunnyhop2",MOSSGREEN,WHITE,DARKRED,GRAY,DARKRED,g_js_fJump_Distance[client],GRAY,RED,strafes,GRAY,RED,g_js_fPreStrafe[client],GRAY,RED, g_js_fMax_Speed_Final[client],GRAY,RED, fJump_Height,GRAY, RED, sync,PERCENT,GRAY);
-				RedStat(client);
-			//all chat
-				for (new i = 1; i <= MaxClients; i++) {
-					if (IsValidClient(i)) {
-						if (g_iColorChat[i] == 1 && i != client)
-							PrintToChat(i, "%t", "Jumpstats_BhopAll",MOSSGREEN,WHITE,DARKRED,szName, RED,DARKRED, g_js_fJump_Distance[client],RED,DARKRED);
-					}
-				}
-			}
-			if (g_fGoldBHOP <= g_js_fJump_Distance[client] < g_fMaxBHOP && !(strafes <= 6)) {
-				CPrintToChat(client, "[{lightgreen}JS{default}] {olive}Bhop{default}: {olive}%.2f units{grey} [\x10 %i {default}Strafes | \x10%.0f {default}Pre | \x10%.0f {default}Max | \x10%.0f {default}Height | \x10%i%s {default}Sync",g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
-				GoldStat(client);
-			//all chat
-				for (new i = 1; i <= MaxClients; i++) {
-					if (IsValidClient(i)) {
-						if (g_iColorChat[i] == 1 && i != client)
-							PrintToChat(i, "%t", "Jumpstats_BhopAll",MOSSGREEN,WHITE,ORANGE,szName, YELLOW,ORANGE, g_js_fJump_Distance[client],YELLOW,ORANGE);
-					}
-				}
-			}
-			else if (g_fGoldBHOP <= g_js_fJump_Distance[client] < g_fMaxBHOP && strafes <= 6) {
-				g_bCheatedJump[client] = true;
-				CPrintToChat(client, "[{lightgreen}JS{default}] {olive}Bhop{default}: {olive}%.2f units{grey} [\x10 %i {default}Strafes | \x10%.0f {default}Pre | \x10%.0f {default}Max | \x10%.0f {default}Height | \x10%i%s {default}Sync",g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
-				LogToFileEx(g_js_LogPath, "%s [JS] %s jumped %0.4f units with a Stat [%i Strafes | %.3f Pre | %.3f Max | Height %.1f | %i%c Sync]",szSteamID,szName, g_js_fJump_Distance[client],strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
-			}
-			if (g_fMaxBHOP <= g_js_fJump_Distance[client]) {
-				g_bCheatedJump[client] = true;
-				LogToFileEx(g_js_LogPath, "%s [JS] %s jumped %0.4f units with a Bhop [%i Strafes | %.3f Pre | %.3f Max | Height %.1f | %i%c Sync]",szSteamID,szName, g_js_fJump_Distance[client],strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
-			}
+	else if(g_js_bBhop[client] && ValidJump && ground_frames < 11 && g_js_Last_Ground_Frames[client] > 10 && fGroundDiff == 0.0 && fJump_Height <= 68.0 && !g_js_bDropJump[client] && g_js_fPreStrafe[client] > 250.1 && !touchwall) {
+		Format(StatType[0], 128, "BHOP");
+		PrintToConsole(client, "		");
+		PrintToConsole(client, "[JS] %s jumped %0.4f units with a %sBhop [%i Strafes | %.3f Pre | %.3f Max | Height %.1f | %i%c Sync]",szName, g_js_fJump_Distance[client],sBuggedC,strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
+		PrintToConsole(client, "%s", szStrafeStats);
+		g_bBhop[client]=true;
+		if(g_fGreyBHOP <= g_js_fJump_Distance[client] < g_fGreenBHOP) {
+			PrintToChat(client, "%t", "ClientBunnyhop1",MOSSGREEN,WHITE,GRAY, g_js_fJump_Distance[client],GRAY, strafes, GRAY, GRAY, g_js_fPreStrafe[client], GRAY, GRAY, fJump_Height,GRAY, GRAY, sync,PERCENT,GRAY);
+			GreyStat(client);
+		}
+		else if(g_fGreenBHOP <= g_js_fJump_Distance[client] < g_fBlueBHOP) {
+			PrintToChat(client, "%t", "ClientBunnyhop2",MOSSGREEN,WHITE,GREEN,GRAY,GREEN,g_js_fJump_Distance[client],GRAY,LIMEGREEN,strafes,GRAY,LIMEGREEN,g_js_fPreStrafe[client],GRAY,LIMEGREEN, g_js_fMax_Speed_Final[client],GRAY,LIMEGREEN, fJump_Height,GRAY, LIMEGREEN, sync,PERCENT,GRAY);
+			GreenStat(client);
+		}
+		else if(g_fBlueBHOP <= g_js_fJump_Distance[client] < g_fRedBHOP) {
+			CPrintToChat(client, "[{lightgreen}JS{default}] \x0CBhop{default}: \x0C%.2f units{grey} [{blue} %i {default}Strafes | {blue}%.0f {default}Pre | {blue}%.0f {default}Max | {blue}%.0f {default}Height | {blue}%i%s {default}Sync]",g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
+			BlueStat(client);
+		}
+		else if(g_fRedBHOP <= g_js_fJump_Distance[client] < g_fGoldBHOP) {
+			PrintToChat(client, "%t", "ClientBunnyhop2",MOSSGREEN,WHITE,DARKRED,GRAY,DARKRED,g_js_fJump_Distance[client],GRAY,RED,strafes,GRAY,RED,g_js_fPreStrafe[client],GRAY,RED, g_js_fMax_Speed_Final[client],GRAY,RED, fJump_Height,GRAY, RED, sync,PERCENT,GRAY);
+			RedStat(client);
+		}
+		else if(g_fGoldBHOP <= g_js_fJump_Distance[client] < g_fMaxBHOP && !(strafes <= 6)) {
+			CPrintToChat(client, "[{lightgreen}JS{default}] {olive}Bhop{default}: {olive}%.2f units{grey} [\x10 %i {default}Strafes | \x10%.0f {default}Pre | \x10%.0f {default}Max | \x10%.0f {default}Height | \x10%i%s {default}Sync",g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
+			GoldStat(client);
+		}
+		else if(g_fGoldBHOP <= g_js_fJump_Distance[client] < g_fMaxBHOP && strafes <= 6) {
+			g_bCheatedJump[client] = true;
+			CPrintToChat(client, "[{lightgreen}JS{default}] {olive}Bhop{default}: {olive}%.2f units{grey} [\x10 %i {default}Strafes | \x10%.0f {default}Pre | \x10%.0f {default}Max | \x10%.0f {default}Height | \x10%i%s {default}Sync",g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
+			LogToFileEx(g_js_LogPath, "%s [JS] %s jumped %0.4f units with a Bhop [%i Strafes | %.3f Pre | %.3f Max | Height %.1f | %i%c Sync]",szSteamID,szName, g_js_fJump_Distance[client],strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
+		}
+		if(g_fMaxBHOP <= g_js_fJump_Distance[client]) {
+			g_bCheatedJump[client] = true;
+			LogToFileEx(g_js_LogPath, "%s [JS] %s jumped %0.4f units with a Bhop [%i Strafes | %.3f Pre | %.3f Max | Height %.1f | %i%c Sync]",szSteamID,szName, g_js_fJump_Distance[client],strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
 		}
 	}
 //CheckIsMBhop
-	if (!g_js_bBhop[client] || g_js_Last_Ground_Frames[client] >=11 || fGroundDiff > 0.0 || touchwall)
-		g_js_MultiBhop_Count[client] = 1;
-	if (g_js_bBhop[client] && ValidJump && g_js_Last_Ground_Frames[client] < 11 && ground_frames < 11 && fGroundDiff == 0.0 && fJump_Height <= 68.0 && !g_js_bDropJump[client]) {
-		if (!touchwall) {
-			g_js_MultiBhop_Count[client]++;
-			char szBhopCount[255];
-			Format(szBhopCount, sizeof(szBhopCount), "%i", g_js_MultiBhop_Count[client]);
-			if (g_js_MultiBhop_Count[client] > 8)
-			Format(szBhopCount, sizeof(szBhopCount), "> 8");
-			PrintToConsole(client, "		");
-			PrintToConsole(client, "[JS] %s jumped %0.4f units with a %sMultiBhop [%i Strafes | %3.f Pre | %3.f Max | Height %.1f | %s Bhops | %i%c Sync]",szName, g_js_fJump_Distance[client],sBuggedC,strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client], fJump_Height,szBhopCount,sync,PERCENT);
-			PrintToConsole(client, "%s", szStrafeStats);
-			g_bMBhop[client]=true;
-			if (g_fGreyMBHOP <= g_js_fJump_Distance[client] < g_fGreenMBHOP) {
-				PrintToChat(client, "%t", "ClientMultiBhop1",MOSSGREEN,WHITE, GRAY, g_js_fJump_Distance[client],GRAY, strafes, GRAY, GRAY, g_js_fPreStrafe[client], GRAY, GRAY, sync,PERCENT,GRAY);
-				GreyStat(client);
-			}
-			if (g_fGreenMBHOP <= g_js_fJump_Distance[client] < g_fBlueMBHOP) {
-				CPrintToChat(client, "[{lightgreen}JS{default}] {green}MBhop{default}: {green}%.2f units{grey}[{lime}%i {default}Strafes | {lime}%.0f {default}Pre | {lime}%.0f {default}Max | {lime}%.0f {default}Height | {lime}%s {default}Bhops | {lime}%i%s {default}Sync]",g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,szBhopCount,sync,PERCENT);
-				GreenStat(client);
-			//all chat
-				for (new i = 1; i <= MaxClients; i++) {
-					if (IsValidClient(i)) {
-						if (g_iColorChat[i] == 1 && i != client)
-							PrintToChat(i, "%t", "Jumpstats_MultiBhopAll",MOSSGREEN,WHITE,GREEN,szName, MOSSGREEN,GREEN, g_js_fJump_Distance[client],MOSSGREEN,GREEN);
-					}
-				}
-			}
-			if (g_fBlueMBHOP <= g_js_fJump_Distance[client] < g_fRedMBHOP) {
-				PrintToChat(client, "%t", "ClientMultiBhop2",MOSSGREEN,WHITE,DARKBLUE,GRAY,DARKBLUE,g_js_fJump_Distance[client],GRAY,BLUE,strafes,GRAY,BLUE,g_js_fPreStrafe[client],GRAY,BLUE,g_js_fMax_Speed_Final[client],GRAY,BLUE, fJump_Height,GRAY, BLUE,szBhopCount,GRAY,BLUE, sync,PERCENT,GRAY);
-				BlueStat(client);
-			//all chat
-				for (new i = 1; i <= MaxClients; i++) {
-					if (IsValidClient(i)) {
-						if (g_iColorChat[i] == 1 && i != client)
-							PrintToChat(i, "%t", "Jumpstats_MultiBhopAll",MOSSGREEN,WHITE,DARKBLUE,szName, BLUE,DARKBLUE, g_js_fJump_Distance[client],BLUE,DARKBLUE);
-					}
-				}
-			}
-			if (g_fRedMBHOP <= g_js_fJump_Distance[client] < g_fGoldMBHOP) {
-				PrintToChat(client, "%t", "ClientMultiBhop2",MOSSGREEN,WHITE,DARKRED,GRAY,DARKRED,g_js_fJump_Distance[client],GRAY,RED,strafes,GRAY,RED,g_js_fPreStrafe[client],GRAY,RED,g_js_fMax_Speed_Final[client],GRAY,RED, fJump_Height,GRAY, RED,szBhopCount,GRAY,RED, sync,PERCENT,GRAY);
-				RedStat(client);
-			//all chat
-				for (new i = 1; i <= MaxClients; i++) {
-					if (IsValidClient(i)) {
-						if (g_iColorChat[i] == 1 && i != client)
-							PrintToChat(i, "%t", "Jumpstats_MultiBhopAll",MOSSGREEN,WHITE,DARKRED,szName, RED,DARKRED, g_js_fJump_Distance[client],RED,DARKRED);
-					}
-				}
-			}
-			if (g_fGoldMBHOP <= g_js_fJump_Distance[client] < g_fMaxMBHOP && !(strafes <= 6)) {
-				CPrintToChat(client, "[{lightgreen}JS{default}] {olive}MBhop{default}: {olive}%.2f units{grey} [\x10%i {default}Strafes | \x10%.0f {default}Pre | \x10%.0f {default}Max | \x10%.0f {default}Height | \x10%s {default}Bhops | \x10%i%s {default}Sync]",g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,szBhopCount,sync,PERCENT);
-				GoldStat(client);
-			//all chat
-				for (new i = 1; i <= MaxClients; i++) {
-					if (IsValidClient(i)) {
-						if (g_iColorChat[i] == 1 && i != client)
-							PrintToChat(i, "%t", "Jumpstats_MultiBhopAll",MOSSGREEN,WHITE,ORANGE,szName, YELLOW,ORANGE, g_js_fJump_Distance[client],YELLOW,ORANGE);
-					}
-				}
-			}
-			else if (g_fGoldMBHOP <= g_js_fJump_Distance[client] < g_fMaxMBHOP && strafes <= 6) {
-				g_bCheatedJump[client] = true;
-				CPrintToChat(client, "[{lightgreen}JS{default}] {olive}MBhop{default}: {olive}%.2f units{grey} [\x10%i {default}Strafes | \x10%.0f {default}Pre | \x10%.0f {default}Max | \x10%.0f {default}Height | \x10%s {default}Bhops | \x10%i%s {default}Sync]",g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,szBhopCount,sync,PERCENT);
-				LogToFileEx(g_js_LogPath, "%s [JS] %s jumped %0.4f units with a Stat [%i Strafes | %.3f Pre | %.3f Max | Height %.1f | %i%c Sync]",szSteamID,szName, g_js_fJump_Distance[client],strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
-			}
-			if (g_fMaxMBHOP <= g_js_fJump_Distance[client]) {
-				LogToFileEx(g_js_LogPath, "%s [JS] %s jumped %0.4f units with a MultiBhop [%i Strafes | %3.f Pre | %3.f Max | Height %.1f | %s Bhops | %i%c Sync]",szSteamID,szName, g_js_fJump_Distance[client],strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client], fJump_Height,szBhopCount,sync,PERCENT);
-				g_bCheatedJump[client] = true;
-			}
+	else if(g_js_bBhop[client] && ValidJump && g_js_Last_Ground_Frames[client] < 11 && ground_frames < 11 && fGroundDiff == 0.0 && fJump_Height <= 68.0 && !g_js_bDropJump[client] && !touchwall) {
+		Format(StatType[0], 128, "MBHOP");
+		g_js_MultiBhop_Count[client]++;
+		char szBhopCount[255];
+		Format(szBhopCount, sizeof(szBhopCount), "%i", g_js_MultiBhop_Count[client]);
+		if(g_js_MultiBhop_Count[client] > 8)
+		Format(szBhopCount, sizeof(szBhopCount), "> 8");
+		PrintToConsole(client, "		");
+		PrintToConsole(client, "[JS] %s jumped %0.4f units with a %sMultiBhop [%i Strafes | %3.f Pre | %3.f Max | Height %.1f | %s Bhops | %i%c Sync]",szName, g_js_fJump_Distance[client],sBuggedC,strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client], fJump_Height,szBhopCount,sync,PERCENT);
+		PrintToConsole(client, "%s", szStrafeStats);
+		g_bMBhop[client]=true;
+		if(g_fGreyMBHOP <= g_js_fJump_Distance[client] < g_fGreenMBHOP) {
+			PrintToChat(client, "%t", "ClientMultiBhop1",MOSSGREEN,WHITE, GRAY, g_js_fJump_Distance[client],GRAY, strafes, GRAY, GRAY, g_js_fPreStrafe[client], GRAY, GRAY, sync,PERCENT,GRAY);
+			GreyStat(client);
+		}
+		else if(g_fGreenMBHOP <= g_js_fJump_Distance[client] < g_fBlueMBHOP) {
+			CPrintToChat(client, "[{lightgreen}JS{default}] {green}MBhop{default}: {green}%.2f units{grey}[{lime}%i {default}Strafes | {lime}%.0f {default}Pre | {lime}%.0f {default}Max | {lime}%.0f {default}Height | {lime}%s {default}Bhops | {lime}%i%s {default}Sync]",g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,szBhopCount,sync,PERCENT);
+			GreenStat(client);
+		}
+		else if(g_fBlueMBHOP <= g_js_fJump_Distance[client] < g_fRedMBHOP) {
+			PrintToChat(client, "%t", "ClientMultiBhop2",MOSSGREEN,WHITE,DARKBLUE,GRAY,DARKBLUE,g_js_fJump_Distance[client],GRAY,BLUE,strafes,GRAY,BLUE,g_js_fPreStrafe[client],GRAY,BLUE,g_js_fMax_Speed_Final[client],GRAY,BLUE, fJump_Height,GRAY, BLUE,szBhopCount,GRAY,BLUE, sync,PERCENT,GRAY);
+			BlueStat(client);
+		}
+		else if(g_fRedMBHOP <= g_js_fJump_Distance[client] < g_fGoldMBHOP) {
+			PrintToChat(client, "%t", "ClientMultiBhop2",MOSSGREEN,WHITE,DARKRED,GRAY,DARKRED,g_js_fJump_Distance[client],GRAY,RED,strafes,GRAY,RED,g_js_fPreStrafe[client],GRAY,RED,g_js_fMax_Speed_Final[client],GRAY,RED, fJump_Height,GRAY, RED,szBhopCount,GRAY,RED, sync,PERCENT,GRAY);
+			RedStat(client);
+		}
+		else if(g_fGoldMBHOP <= g_js_fJump_Distance[client] < g_fMaxMBHOP && !(strafes <= 6)) {
+			CPrintToChat(client, "[{lightgreen}JS{default}] {olive}MBhop{default}: {olive}%.2f units{grey} [\x10%i {default}Strafes | \x10%.0f {default}Pre | \x10%.0f {default}Max | \x10%.0f {default}Height | \x10%s {default}Bhops | \x10%i%s {default}Sync]",g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,szBhopCount,sync,PERCENT);
+			GoldStat(client);
+		}
+		else if(g_fGoldMBHOP <= g_js_fJump_Distance[client] < g_fMaxMBHOP && strafes <= 6) {
+			g_bCheatedJump[client] = true;
+			CPrintToChat(client, "[{lightgreen}JS{default}] {olive}MBhop{default}: {olive}%.2f units{grey} [\x10%i {default}Strafes | \x10%.0f {default}Pre | \x10%.0f {default}Max | \x10%.0f {default}Height | \x10%s {default}Bhops | \x10%i%s {default}Sync]",g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,szBhopCount,sync,PERCENT);
+			LogToFileEx(g_js_LogPath, "%s [JS] %s jumped %0.4f units with a MultiBhop [%i Strafes | %.3f Pre | %.3f Max | Height %.1f | %i%c Sync]",szSteamID,szName, g_js_fJump_Distance[client],strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
+		}
+		if(g_fMaxMBHOP <= g_js_fJump_Distance[client]) {
+			LogToFileEx(g_js_LogPath, "%s [JS] %s jumped %0.4f units with a MultiBhop [%i Strafes | %3.f Pre | %3.f Max | Height %.1f | %s Bhops | %i%c Sync]",szSteamID,szName, g_js_fJump_Distance[client],strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client], fJump_Height,szBhopCount,sync,PERCENT);
+			g_bCheatedJump[client] = true;
 		}
 	}
 //CheckIsDBhop
-	if (g_js_bBhop[client] && ValidJump && ground_frames < 11 && g_js_Last_Ground_Frames[client] > 11 && g_bLastButtonJump[client] && fGroundDiff == 0.0 && fJump_Height <= 68.0 && g_js_bDropJump[client] && g_js_fDropped_Units[client] <= 132.0)
-	{
-		if (!touchwall)
-		{
-			PrintToConsole(client, "		");
-			PrintToConsole(client, "[JS] %s jumped %0.4f units with a %sDropBhop [%i Strafes | %.3f Pre | %.3f Max | Height %.1f | %i%c Sync]",szName, g_js_fJump_Distance[client],sBuggedC,strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
-			PrintToConsole(client, "%s", szStrafeStats);
-			g_bDBhop[client]=true;
-			if (g_fGreyDBHOP <= g_js_fJump_Distance[client] < g_fGreenDBHOP) {
-				PrintToChat(client, "%t", "ClientDropBhop1",MOSSGREEN,WHITE, GRAY,g_js_fJump_Distance[client],GRAY, strafes, GRAY, GRAY, g_js_fPreStrafe[client], GRAY, GRAY,fJump_Height,GRAY, GRAY,sync,PERCENT,GRAY);
-				GreyStat(client);
-			}
-			if (g_fGreenDBHOP <= g_js_fJump_Distance[client] < g_fBlueDBHOP) {
-				CPrintToChat(client, "[{lightgreen}JS{default}] {green}DBhop{default}: {green}%.2f units{grey} [{lime} %i {default}Strafes | {lime}%.0f {default}Pre | {lime}%.0f {default}Max | {lime}%.0f {default}Height | {lime}%i%s {default}Sync]",g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
-				GreenStat(client);
-			//all chat
-				for (new i = 1; i <= MaxClients; i++) {
-					if (IsValidClient(i)) {
-						if (g_iColorChat[i] == 1 && i != client)
-							PrintToChat(i, "%t", "Jumpstats_DropBhopAll",MOSSGREEN,WHITE,GREEN,szName, MOSSGREEN,GREEN, g_js_fJump_Distance[client],MOSSGREEN,GREEN);
-					}
-				}
-			}
-			if (g_fBlueDBHOP <= g_js_fJump_Distance[client] < g_fRedDBHOP) {
-				PrintToChat(client, "%t", "ClientDropBhop2",MOSSGREEN,WHITE,DARKBLUE,GRAY,DARKBLUE,g_js_fJump_Distance[client],GRAY,BLUE,strafes,GRAY,BLUE,g_js_fPreStrafe[client],GRAY,BLUE, g_js_fMax_Speed_Final[client],GRAY,BLUE, fJump_Height,GRAY, BLUE,sync,PERCENT,GRAY);
-				BlueStat(client);
-			//all chat
-				for (new i = 1; i <= MaxClients; i++) {
-					if (IsValidClient(i)) {
-						if (g_iColorChat[i] == 1 && i != client)
-							PrintToChat(i, "%t", "Jumpstats_DropBhopAll",MOSSGREEN,WHITE,DARKBLUE,szName, BLUE,DARKBLUE, g_js_fJump_Distance[client],BLUE,DARKBLUE);
-					}
-				}
-			}
-			if (g_fRedDBHOP <= g_js_fJump_Distance[client] < g_fGoldDBHOP) {
-				PrintToChat(client, "%t", "ClientDropBhop2",MOSSGREEN,WHITE,DARKRED,GRAY,DARKRED,g_js_fJump_Distance[client],GRAY,RED,strafes,GRAY,RED,g_js_fPreStrafe[client],GRAY,RED, g_js_fMax_Speed_Final[client],GRAY,RED,fJump_Height,GRAY, RED, sync,PERCENT,GRAY);
-				RedStat(client);
-			//all chat
-				for (new i = 1; i <= MaxClients; i++) {
-					if (IsValidClient(i)) {
-						if (g_iColorChat[i] == 1==true && i != client)
-							PrintToChat(i, "%t", "Jumpstats_DropBhopAll",MOSSGREEN,WHITE,DARKRED,szName, RED,DARKRED, g_js_fJump_Distance[client], RED,DARKRED);
-					}
-				}
-			}
-			if (g_fGoldDBHOP <= g_js_fJump_Distance[client] < g_fMaxDBHOP && !(strafes <=6)) {
-				CPrintToChat(client, "[{lightgreen}JS{default}] {olive}DBhop{default}: {olive}%.2f units{grey} [\x10 %i {default}Strafes | \x10%.0f {default}Pre | \x10%.0f {default}Max | \x10%.0f {default}Height | \x10%i%s {default}Sync",g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
-				GoldStat(client);
-			//all chat
-				for (new i = 1; i <= MaxClients; i++) {
-					if (IsValidClient(i)) {
-						if (g_iColorChat[i] == 1 && i != client){
-							PrintToChat(i, "%t", "Jumpstats_DropBhopAll",MOSSGREEN,WHITE,ORANGE,szName, YELLOW,ORANGE, g_js_fJump_Distance[client],YELLOW,ORANGE);
-						}
-					}
-				}
-			}
-			if (g_fGoldDBHOP <= g_js_fJump_Distance[client] < g_fMaxDBHOP && strafes <= 6) {
-				g_bCheatedJump[client] = true;
-				CPrintToChat(client, "[{lightgreen}JS{default}] {olive}DBhop{default}: {olive}%.2f units{grey} [\x10 %i {default}Strafes | \x10%.0f {default}Pre | \x10%.0f {default}Max | \x10%.0f {default}Height | \x10%i%s {default}Sync",g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
-				LogToFileEx(g_js_LogPath, "%s [JS] %s jumped %0.4f units with a Stat [%i Strafes | %.3f Pre | %.3f Max | Height %.1f | %i%c Sync]",szSteamID,szName, g_js_fJump_Distance[client],strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
-			}
-			if (g_fMaxDBHOP <= g_js_fJump_Distance[client]) {
-				LogToFileEx(g_js_LogPath, "%s [JS] %s jumped %0.4f units with a DropBhop [%i Strafes | %.3f Pre | %.3f Max | Height %.1f | %i%c Sync]",szSteamID,szName, g_js_fJump_Distance[client],strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
-				g_bCheatedJump[client] = true;
-			}
+	else if(g_js_bBhop[client] && ValidJump && ground_frames < 11 && g_js_Last_Ground_Frames[client] > 11 && g_bLastButtonJump[client] && fGroundDiff == 0.0 && fJump_Height <= 68.0 && g_js_bDropJump[client] && g_js_fDropped_Units[client] <= 132.0 && !touchwall) {
+		Format(StatType[0], 128, "DBHOP");
+		PrintToConsole(client, "		");
+		PrintToConsole(client, "[JS] %s jumped %0.4f units with a %sDropBhop [%i Strafes | %.3f Pre | %.3f Max | Height %.1f | %i%c Sync]",szName, g_js_fJump_Distance[client],sBuggedC,strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
+		PrintToConsole(client, "%s", szStrafeStats);
+		g_bDBhop[client]=true;
+		if(g_fGreyDBHOP <= g_js_fJump_Distance[client] < g_fGreenDBHOP) {
+			PrintToChat(client, "%t", "ClientDropBhop1",MOSSGREEN,WHITE, GRAY,g_js_fJump_Distance[client],GRAY, strafes, GRAY, GRAY, g_js_fPreStrafe[client], GRAY, GRAY,fJump_Height,GRAY, GRAY,sync,PERCENT,GRAY);
+			GreyStat(client);
+		}
+		else if(g_fGreenDBHOP <= g_js_fJump_Distance[client] < g_fBlueDBHOP) {
+			CPrintToChat(client, "[{lightgreen}JS{default}] {green}DBhop{default}: {green}%.2f units{grey} [{lime} %i {default}Strafes | {lime}%.0f {default}Pre | {lime}%.0f {default}Max | {lime}%.0f {default}Height | {lime}%i%s {default}Sync]",g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
+			GreenStat(client);
+		}
+		else if(g_fBlueDBHOP <= g_js_fJump_Distance[client] < g_fRedDBHOP) {
+			PrintToChat(client, "%t", "ClientDropBhop2",MOSSGREEN,WHITE,DARKBLUE,GRAY,DARKBLUE,g_js_fJump_Distance[client],GRAY,BLUE,strafes,GRAY,BLUE,g_js_fPreStrafe[client],GRAY,BLUE, g_js_fMax_Speed_Final[client],GRAY,BLUE, fJump_Height,GRAY, BLUE,sync,PERCENT,GRAY);
+			BlueStat(client);
+		}
+		else if(g_fRedDBHOP <= g_js_fJump_Distance[client] < g_fGoldDBHOP) {
+			PrintToChat(client, "%t", "ClientDropBhop2",MOSSGREEN,WHITE,DARKRED,GRAY,DARKRED,g_js_fJump_Distance[client],GRAY,RED,strafes,GRAY,RED,g_js_fPreStrafe[client],GRAY,RED, g_js_fMax_Speed_Final[client],GRAY,RED,fJump_Height,GRAY, RED, sync,PERCENT,GRAY);
+			RedStat(client);
+		}
+		else if(g_fGoldDBHOP <= g_js_fJump_Distance[client] < g_fMaxDBHOP && !(strafes <=6)) {
+			CPrintToChat(client, "[{lightgreen}JS{default}] {olive}DBhop{default}: {olive}%.2f units{grey} [\x10 %i {default}Strafes | \x10%.0f {default}Pre | \x10%.0f {default}Max | \x10%.0f {default}Height | \x10%i%s {default}Sync",g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
+			GoldStat(client);
+		}
+		else if(g_fGoldDBHOP <= g_js_fJump_Distance[client] < g_fMaxDBHOP && strafes <= 6) {
+			g_bCheatedJump[client] = true;
+			CPrintToChat(client, "[{lightgreen}JS{default}] {olive}DBhop{default}: {olive}%.2f units{grey} [\x10 %i {default}Strafes | \x10%.0f {default}Pre | \x10%.0f {default}Max | \x10%.0f {default}Height | \x10%i%s {default}Sync",g_js_fJump_Distance[client],strafes,g_js_fPreStrafe[client],g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
+			LogToFileEx(g_js_LogPath, "%s [JS] %s jumped %0.4f units with a DropBhop [%i Strafes | %.3f Pre | %.3f Max | Height %.1f | %i%c Sync]",szSteamID,szName, g_js_fJump_Distance[client],strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
+		}
+		if(g_fMaxDBHOP <= g_js_fJump_Distance[client]) {
+			LogToFileEx(g_js_LogPath, "%s [JS] %s jumped %0.4f units with a DropBhop [%i Strafes | %.3f Pre | %.3f Max | Height %.1f | %i%c Sync]",szSteamID,szName, g_js_fJump_Distance[client],strafes, g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client],fJump_Height,sync,PERCENT);
+			g_bCheatedJump[client] = true;
 		}
 	}
+	//reset multibhop count
+	if(!g_js_bBhop[client] || g_js_Last_Ground_Frames[client] >=11 || fGroundDiff > 0.0 || touchwall)
+		g_js_MultiBhop_Count[client] = 1;
 	//strafe sync chat
-	if (g_iStrafeSync[client] == 1 && g_js_fJump_Distance[client] >= 240)
+	if(g_iStrafeSync[client] == 1 && g_js_fJump_Distance[client] >= 240)
 		PrintToChat(client,"%s", szStrafeSync);
 	if(ValidJump) {
 	//wjrecord
-		if (g_bWJ[client] == true && g_js_fPersonal_Wj_Record[client] < g_js_fJump_Distance[client] && !IsFakeClient(client) && !g_bCheatedJump[client]) {
-			if (g_js_fPersonal_Wj_Record[client] > 0.0)
+		if(g_bWJ[client] == true && g_js_fPersonal_Wj_Record[client] < g_js_fJump_Distance[client] && !IsFakeClient(client) && !g_bCheatedJump[client]) {
+			if(g_js_fPersonal_Wj_Record[client] > 0.0)
 				PrintToChat(client, "%t", "Jumpstats_BeatWjBest",MOSSGREEN,WHITE,YELLOW, g_js_fJump_Distance[client]);
 			g_js_fPersonal_Wj_Record[client] = g_js_fJump_Distance[client];
 			db_updateWjRecord(client);
 			CreateTimer(0.2, Top3CheckDelay, client);
 		}
 	//bhoprecord
-		if (g_bBhop[client] == true && g_js_fPersonal_Bhop_Record[client] < g_js_fJump_Distance[client] && !IsFakeClient(client) && !g_bCheatedJump[client]) {
-			if (g_js_fPersonal_Bhop_Record[client] > 0.0)
+		else if(g_bBhop[client] == true && g_js_fPersonal_Bhop_Record[client] < g_js_fJump_Distance[client] && !IsFakeClient(client) && !g_bCheatedJump[client]) {
+			if(g_js_fPersonal_Bhop_Record[client] > 0.0)
 				PrintToChat(client, "%t", "Jumpstats_BeatBhopBest",MOSSGREEN,WHITE,YELLOW, g_js_fJump_Distance[client]);
 			g_js_fPersonal_Bhop_Record[client] = g_js_fJump_Distance[client];
 			db_updateBhopRecord(client);
 			CreateTimer(0.2, Top3CheckDelay, client);
 		}
 	//mbhoprecord
-		if (g_bMBhop[client] == true && g_js_fPersonal_MultiBhop_Record[client] < g_js_fJump_Distance[client] && !IsFakeClient(client) && !g_bCheatedJump[client]) {
-			if (g_js_fPersonal_MultiBhop_Record[client] > 0.0)
+		else if(g_bMBhop[client] == true && g_js_fPersonal_MultiBhop_Record[client] < g_js_fJump_Distance[client] && !IsFakeClient(client) && !g_bCheatedJump[client]) {
+			if(g_js_fPersonal_MultiBhop_Record[client] > 0.0)
 				PrintToChat(client, "%t", "Jumpstats_BeatMultiBhopBest",MOSSGREEN,WHITE,YELLOW, g_js_fJump_Distance[client]);
 			g_js_fPersonal_MultiBhop_Record[client] = g_js_fJump_Distance[client];
 			db_updateMultiBhopRecord(client);
 			CreateTimer(0.2, Top3CheckDelay, client);
 		}
 	//dbhoprecord
-		if (g_bDBhop[client] == true && g_js_fPersonal_DropBhop_Record[client] < g_js_fJump_Distance[client] && !IsFakeClient(client) && ValidJump && !g_bCheatedJump[client]) {
-			if (g_js_fPersonal_DropBhop_Record[client] > 0.0)
+		else if(g_bDBhop[client] == true && g_js_fPersonal_DropBhop_Record[client] < g_js_fJump_Distance[client] && !IsFakeClient(client) && ValidJump && !g_bCheatedJump[client]) {
+			if(g_js_fPersonal_DropBhop_Record[client] > 0.0)
 				PrintToChat(client, "%t", "Jumpstats_BeatDropBhopBest",MOSSGREEN,WHITE,YELLOW, g_js_fJump_Distance[client]);
 			g_js_fPersonal_DropBhop_Record[client] = g_js_fJump_Distance[client];
 			db_updateDropBhopRecord(client);
@@ -2216,6 +2119,15 @@ stock SetClientMoney(int client, int value) {
 	int offset = FindSendPropInfo("CCSPlayer", "m_iAccount");
 	SetEntData(client, offset, value);
 }
+/*
+* timer seems redundant because it is
+* calling Top3Check when the stat gets
+* reged on top menu could be more efficient
+* as you could call directly to say
+* Top3LJ or Top3Bhop
+* but i feel that would take more space
+* and be less readable
+*/
 public Action Top3CheckDelay(Handle timer, int client) {
 	Top3Check(client);
 }
@@ -2223,57 +2135,57 @@ public Top3Check(int client) {
 	if(g_bLJ[client] && g_bBuggedStat[client] == false) {
 		if(g_js_LjRank[client] == 1)
 			NumberOnePost(client);
-		if(g_js_LjRank[client] == 2)
+		else if(g_js_LjRank[client] == 2)
 			NumberTwoPost(client);
-		if(g_js_LjRank[client] == 3)
+		else if(g_js_LjRank[client] == 3)
 			NumberThreePost(client);
 	}
-	if(g_bLJBlock[client] && g_bLJ[client]) {
+	else if(g_bLJBlock[client] && g_bLJ[client]) {
 		if(g_js_LjBlockRank[client] == 1)
 			NumberOnePost(client);
-		if(g_js_LjBlockRank[client] == 2)
+		else if(g_js_LjBlockRank[client] == 2)
 			NumberTwoPost(client);
-		if(g_js_LjBlockRank[client] == 3)
+		else if(g_js_LjBlockRank[client] == 3)
 			NumberThreePost(client);
 	}
-	if(g_bWJ[client]) {
+	else if(g_bWJ[client]) {
 		if(g_js_WjRank[client] == 1)
 			NumberOnePost(client);
-		if(g_js_WjRank[client] == 2)
+		else if(g_js_WjRank[client] == 2)
 			NumberTwoPost(client);
-		if(g_js_WjRank[client] == 3)
+		else if(g_js_WjRank[client] == 3)
 			NumberThreePost(client);
 	}
-	if(g_bBhop[client]) {
+	else if(g_bBhop[client]) {
 		if(g_js_BhopRank[client] == 1)
 			NumberOnePost(client);
-		if(g_js_BhopRank[client] == 2)
+		else if(g_js_BhopRank[client] == 2)
 			NumberTwoPost(client);
-		if(g_js_BhopRank[client] == 3)
+		else if(g_js_BhopRank[client] == 3)
 			NumberThreePost(client);
 	}
-	if(g_bMBhop[client]) {
+	else if(g_bMBhop[client]) {
 		if(g_js_MultiBhopRank[client] == 1)
 			NumberOnePost(client);
-		if(g_js_MultiBhopRank[client] == 2)
+		else if(g_js_MultiBhopRank[client] == 2)
 			NumberTwoPost(client);
-		if(g_js_MultiBhopRank[client] == 3)
+		else if(g_js_MultiBhopRank[client] == 3)
 			NumberThreePost(client);
 	}
-	if(g_bDBhop[client]) {
+	else if(g_bDBhop[client]) {
 		if(g_js_DropBhopRank[client] == 1)
 			NumberOnePost(client);
-		if(g_js_DropBhopRank[client] == 2)
+		else if(g_js_DropBhopRank[client] == 2)
 			NumberTwoPost(client);
-		if(g_js_DropBhopRank[client] == 3)
+		else if(g_js_DropBhopRank[client] == 3)
 			NumberThreePost(client);
 	}
-	if(g_bLJ[client] && g_bBuggedStat[client]) {
+	else if(g_bLJ[client] && g_bBuggedStat[client]) {
 		if(g_js_BLjRank[client] == 1)
 			NumberOnePost(client);
-		if(g_js_BLjRank[client] == 2)
+		else if(g_js_BLjRank[client] == 2)
 			NumberTwoPost(client);
-		if(g_js_BLjRank[client] == 3)
+		else if(g_js_BLjRank[client] == 3)
 			NumberThreePost(client);
 	}
 }
@@ -2304,24 +2216,46 @@ public GreyStat(int client) {
 	Format(g_js_szLastJumpDistance[client], 256, "<font color='#676060'><b>%.2f units</b></font>", g_js_fJump_Distance[client]);
 }
 public GreenStat(int client) {
+	char szName[128];
+	GetClientName(client, szName, 128);
 	g_js_GoldJump_Count[client] = 0;
 	g_js_LeetJump_Count[client] = 0;
 	Format(g_js_szLastJumpDistance[client], 256, "<font color='#21982a'><b>%.2f units</b></font>", g_js_fJump_Distance[client]);
 	//sound
 	char buffer[255]
 	Format(buffer, sizeof(buffer), "play %s", PROJUMP_RELATIVE_SOUND_PATH);
-	if (g_iEnableQuakeSounds[client] == 1)
+	if(g_iEnableQuakeSounds[client] == 1)
 		ClientCommand(client, buffer);
+	if(g_bLJ[client])
+		return;
+//all chat
+	for (new i = 1; i <= MaxClients; i++) {
+		if(IsValidClient(i)) {
+			if(g_iColorChat[i] == 1 && i != client)
+				CPrintToChat(i, "[{lightgreen}JS{default}] {green}%s{lightgreen} jumped {green}%.3f units {lightgreen}with a {green}%s",szName,g_js_fJump_Distance[client],StatType[0]);
+		}
+	}
 }
 public BlueStat(int client) {
+	char szName[128];
+	GetClientName(client, szName, 128);
 	g_js_GoldJump_Count[client] = 0;
 	g_js_LeetJump_Count[client] = 0;
 	Format(g_js_szLastJumpDistance[client], 256, "<font color='#5e97d8'><b>%.2f units</b></font>", g_js_fJump_Distance[client]);
 	//sound
 	char buffer[255]
 	Format(buffer, sizeof(buffer), "play %s", PERFECTJUMP_RELATIVE_SOUND_PATH);
-	if (g_iEnableQuakeSounds[client] == 1)
+	if(g_iEnableQuakeSounds[client] == 1)
 		ClientCommand(client, buffer);
+	if(g_bLJ[client])
+		return;
+//all chat
+	for (new i = 1; i <= MaxClients; i++) {
+		if(IsValidClient(i)) {
+			if(g_iColorChat[i] == 1 && i != client)
+				CPrintToChat(i, "[{lightgreen}JS{default}] \x0C%s{blue} jumped \x0C%.3f units {blue}with a \x0C%s",szName,g_js_fJump_Distance[client],StatType[0]);
+		}
+	}
 }
 public RedStat(int client) {
 	char szName[128];
@@ -2329,26 +2263,35 @@ public RedStat(int client) {
 	g_js_GoldJump_Count[client] = 0;
 	Format(g_js_szLastJumpDistance[client], 256, "<font color='#9a0909'><b>%.2f units</b></font>", g_js_fJump_Distance[client]);
 	g_js_LeetJump_Count[client]++;
-	if (g_js_LeetJump_Count[client] > 5)
+	if(g_js_LeetJump_Count[client] > 5)
 		g_js_LeetJump_Count[client] = 0;
 //sound
 	char buffer[255];
-	if (g_js_LeetJump_Count[client]==3) {
+	if(g_js_LeetJump_Count[client]==3) {
 		CPrintToChatAll("[{pink}JS{default}]{grey} %s is on a rampage with 3 leet jumps in a row!",szName);
 		Format(buffer, sizeof(buffer), "play %s", LEETJUMP_3_RELATIVE_SOUND_PATH);
-		if (g_iEnableQuakeSounds[client] == 1)
+		if(g_iEnableQuakeSounds[client] == 1)
 			ClientCommand(client, buffer);
 	}
-	else if (g_js_LeetJump_Count[client]==5) {
+	else if(g_js_LeetJump_Count[client]==5) {
 		CPrintToChat(client, "[{pink}JS{default}]{grey} %s is dominating with 5 leet jumps in a row!",szName);
 		Format(buffer, sizeof(buffer), "play %s", LEETJUMP_5_RELATIVE_SOUND_PATH);
-		if (g_iEnableQuakeSounds[client] == 1)
+		if(g_iEnableQuakeSounds[client] == 1)
 			ClientCommand(client, buffer);
 	}
-	else if (g_js_LeetJump_Count[client] != 5 && g_js_LeetJump_Count[client] != 3) {
+	else if(g_js_LeetJump_Count[client] != 5 && g_js_LeetJump_Count[client] != 3) {
 		Format(buffer, sizeof(buffer), "play %s", LEETJUMP_RELATIVE_SOUND_PATH);
-		if (g_iEnableQuakeSounds[client] == 1)
+		if(g_iEnableQuakeSounds[client] == 1)
 			ClientCommand(client, buffer);
+	}
+	if(g_bLJ[client])
+		return;
+//all chat
+	for (new i = 1; i <= MaxClients; i++) {
+		if(IsValidClient(i)) {
+			if(g_iColorChat[i] == 1 && i != client)
+				CPrintToChat(i, "[{lightgreen}JS{default}] {darkred}%s{red} jumped {darkred}%.3f units {red}with a {darkred}%s",szName,g_js_fJump_Distance[client],StatType[0]);
+		}
 	}
 }
 public GoldStat(int client) {
@@ -2357,28 +2300,37 @@ public GoldStat(int client) {
 	Format(g_js_szLastJumpDistance[client], 256, "<font color='#e3ad39'><b>%.2f units</b></font>", g_js_fJump_Distance[client]);
 	g_js_LeetJump_Count[client]++;
 	g_js_GoldJump_Count[client]++;
-	if (g_js_LeetJump_Count[client] > 5)
+	if(g_js_LeetJump_Count[client] > 5)
 		g_js_LeetJump_Count[client] = 0;
-	if (g_js_GoldJump_Count[client] > 5)
+	if(g_js_GoldJump_Count[client] > 5)
 		g_js_GoldJump_Count[client] = 0;
 //sound
 	char buffer[255];
-	if (g_js_GoldJump_Count[client]==3) {
+	if(g_js_GoldJump_Count[client]==3) {
 		CPrintToChatAll("[{pink}JS{default}]{grey} HOLY SHIT, %s hit 3 ownages in a row!",szName);
 		Format(buffer, sizeof(buffer), "play %s", OWNAGEJUMP_3_RELATIVE_SOUND_PATH);
-		if (g_iEnableQuakeSounds[client] == 1)
+		if(g_iEnableQuakeSounds[client] == 1)
 			ClientCommand(client, buffer);
 	}
-	else if (g_js_GoldJump_Count[client]==5) {
+	else if(g_js_GoldJump_Count[client]==5) {
 		CPrintToChatAll("[{pink}JS{default}]{grey} %s is a combowhore with 5 ownages in a row!!",szName);
 		Format(buffer, sizeof(buffer), "play %s", OWNAGEJUMP_5_RELATIVE_SOUND_PATH);
-		if (g_iEnableQuakeSounds[client] == 1)
+		if(g_iEnableQuakeSounds[client] == 1)
 			ClientCommand(client, buffer);
 	}
-	else if (g_js_GoldJump_Count[client] != 5 && g_js_GoldJump_Count[client] != 3) {
+	else if(g_js_GoldJump_Count[client] != 5 && g_js_GoldJump_Count[client] != 3) {
 		Format(buffer, sizeof(buffer), "play %s", OWNAGEJUMP_RELATIVE_SOUND_PATH);
-		if (g_iEnableQuakeSounds[client] == 1)
+		if(g_iEnableQuakeSounds[client] == 1)
 			ClientCommand(client, buffer);
+	}
+	if(g_bLJ[client])
+		return;
+//all chat
+	for (new i = 1; i <= MaxClients; i++) {
+		if(IsValidClient(i)) {
+			if(g_iColorChat[i] == 1 && i != client)
+				CPrintToChat(i, "[{lightgreen}JS{default}] \x10%s{olive} jumped \x10%.3f units {olive}with a \x10%s",szName,g_js_fJump_Distance[client],StatType);
+		}
 	}
 }
 public PostThinkPost(client, ground_frames) {
@@ -2386,7 +2338,7 @@ public PostThinkPost(client, ground_frames) {
 	g_js_Last_Ground_Frames[client] = ground_frames;
 }
 public Action Client_Ljblock(client, args) {
-	if (IsValidClient(client) && IsPlayerAlive(client))
+	if(IsValidClient(client) && IsPlayerAlive(client))
 		LJBlockMenu(client);
 	return Plugin_Handled;
 }
@@ -2398,7 +2350,7 @@ public LJBlockMenu(client) {
 	SetMenuOptionFlags(menu, MENUFLAG_BUTTON_EXIT);
 	DisplayMenu(menu, client, MENU_TIME_FOREVER);
 }
-public LjBlockMenuHandler(Handle menu, MenuAction:action, client, select) {
+public LjBlockMenuHandler(Handle menu, MenuAction action, client, select) {
 	if(action == MenuAction_Select) {
 		if(select == 0) {
 			Function_BlockJump(client);
@@ -2409,6 +2361,8 @@ public LjBlockMenuHandler(Handle menu, MenuAction:action, client, select) {
 			LJBlockMenu(client);
 		}
 	}
+	else if(action == MenuAction_Cancel)
+		delete menu;
 }
 public Action Client_Discord(client, args) {
 	char Discord[56];
@@ -2417,7 +2371,7 @@ public Action Client_Discord(client, args) {
 }
 public Action Client_InfoPanel(client, args) {
 	g_iInfoPanel[client] = g_iInfoPanel[client] == 1 ? 0 : 1;
-	if (g_iInfoPanel[client] == 1)
+	if(g_iInfoPanel[client] == 1)
 		PrintToChat(client, "%t", "Info1", MOSSGREEN,WHITE);
 	else
 		PrintToChat(client, "%t", "Info2", MOSSGREEN,WHITE);
@@ -2439,17 +2393,19 @@ public JsSettingsMenu(client) {
 	SetMenuOptionFlags(menu, MENUFLAG_BUTTON_EXIT);
 	DisplayMenu(menu, client, MENU_TIME_FOREVER);
 }
-public JsSettingsMenuHandler(Handle menu, MenuAction:action, client, select) {
+public JsSettingsMenuHandler(Handle menu, MenuAction action, client, select) {
 	if(action == MenuAction_Select) {
 		if(select == 0)
 			SpeedPanelSettings(client);
-		if(select == 1)
+		else if(select == 1)
 			ToggleSettings(client);
-		if(select == 2) {
+		else if(select == 2) {
 			if(CommandExists("sm_beam"))
 				ClientCommand(client, "sm_beam");
 		}
 	}
+	else if(action == MenuAction_Cancel)
+		delete menu;
 }
 public ToggleSettings(client) {
 	Handle menu = CreateMenu(ToggleSettingsHandler);
@@ -2473,15 +2429,15 @@ public ToggleSettings(client) {
 	SetMenuOptionFlags(menu, MENUFLAG_BUTTON_EXIT);
 	DisplayMenu(menu, client, MENU_TIME_FOREVER);
 }
-public ToggleSettingsHandler(Handle menu, MenuAction:action, client, select) {
+public ToggleSettingsHandler(Handle menu, MenuAction action, client, select) {
 	if(action == MenuAction_Select) {
 		if(select == 0)
 			FakeClientCommand(client, "sm_speed");
-		if(select == 1)
+		else if(select == 1)
 			FakeClientCommand(client, "sm_sync");
-		if(select == 2)
+		else if(select == 2)
 			FakeClientCommand(client, "sm_sound");
-		if(select == 3)
+		else if(select == 3)
 			FakeClientCommand(client, "sm_colorchat");
 		ToggleSettings(client);
 	}
@@ -2499,11 +2455,17 @@ public SpeedPanelSettings(client) {
 	SetMenuOptionFlags(menu, MENUFLAG_BUTTON_EXIT);
 	DisplayMenu(menu, client, MENU_TIME_FOREVER);
 }
-public SpeedPanelSettingsHandler(Handle menu, MenuAction:action, client, select) {
+public SpeedPanelSettingsHandler(Handle menu, MenuAction action, client, select) {
 	if(action == MenuAction_Select) {
 		if(select == 0) {
+		/*
+ 		* this is like this instead of calling the option
+		* because if the option is called it casues a mem leak
+		* and crashes the server
+		* leave as is unless you know how to fix
+		*/
 			g_iInfoPanel[client] = g_iInfoPanel[client] == 1 ? 0 : 1;
-			if (g_iInfoPanel[client] == 1)
+			if(g_iInfoPanel[client] == 1)
 				PrintToChat(client, "%t", "Info1", MOSSGREEN,WHITE);
 			else
 				PrintToChat(client, "%t", "Info2", MOSSGREEN,WHITE);
@@ -2512,14 +2474,14 @@ public SpeedPanelSettingsHandler(Handle menu, MenuAction:action, client, select)
 			SetClientCookie(client, g_hInfoPanel, sCookie);
 			SpeedPanelSettings(client);
 		}
-		if(select == 1)
+		else if(select == 1)
 			KeyColorSettings(client);
-		if(select == 2)
+		else if(select == 2)
 			PerfColorSettings(client);
-		if(select == 3)
+		else if(select == 3)
 			SpeedColorSettings(client);
 	}
-	if(action == MenuAction_Cancel)
+	else if(action == MenuAction_Cancel)
 		JsSettingsMenu(client);
 }
 public KeyColorSettings(client) {
@@ -2541,38 +2503,38 @@ public KeyColorSettings(client) {
 	SetMenuOptionFlags(menu, MENUFLAG_BUTTON_EXIT);
 	DisplayMenu(menu, client, MENU_TIME_FOREVER);
 }
-public KeyColorSettingsHandler(Handle menu, MenuAction:action, client, select) {
+public KeyColorSettingsHandler(Handle menu, MenuAction action, client, select) {
 	if(action == MenuAction_Select) {
 		if(select == 0)
-			g_iKeyColors[client] = 0;
-		if(select == 1)
-			g_iKeyColors[client] = 8;
-		if(select == 2)
-			g_iKeyColors[client] = 16;
-		if(select == 3)
-			g_iKeyColors[client] = 24;
-		if(select == 4)
-			g_iKeyColors[client] = 32;
-		if(select == 5)
-			g_iKeyColors[client] = 40;
-		if(select == 6)
-			g_iKeyColors[client] = 48;
-		if(select == 7)
-			g_iKeyColors[client] = 56;
-		if(select == 8)
-			g_iKeyColors[client] = 64;
-		if(select == 9)
-			g_iKeyColors[client] = 72;
-		if(select == 10)
-			g_iKeyColors[client] = 80;
-		if(select == 11)
-			g_iKeyColors[client] = 88;
+			g_iKeyColors[client] = select * 8;
+		else if(select == 1)
+			g_iKeyColors[client] = select * 8;
+		else if(select == 2)
+			g_iKeyColors[client] = select * 8;
+		else if(select == 3)
+			g_iKeyColors[client] = select * 8;
+		else if(select == 4)
+			g_iKeyColors[client] = select * 8;
+		else if(select == 5)
+			g_iKeyColors[client] = select * 8;
+		else if(select == 6)
+			g_iKeyColors[client] = select * 8;
+		else if(select == 7)
+			g_iKeyColors[client] = select * 8;
+		else if(select == 8)
+			g_iKeyColors[client] = select * 8;
+		else if(select == 9)
+			g_iKeyColors[client] = select * 8;
+		else if(select == 10)
+			g_iKeyColors[client] = select * 8;
+		else if(select == 11)
+			g_iKeyColors[client] = select * 8;
 		KeyColorSettings(client);
 		char sCookie[128];
 		IntToString(g_iKeyColors[client], sCookie, sizeof(sCookie));
 		SetClientCookie(client, g_hKeyColorCookie, sCookie);
 	}
-	if(action == MenuAction_Cancel)
+	else if(action == MenuAction_Cancel)
 		SpeedPanelSettings(client);
 }
 public PerfColorSettings(client) {
@@ -2594,38 +2556,38 @@ public PerfColorSettings(client) {
 	SetMenuOptionFlags(menu, MENUFLAG_BUTTON_EXIT);
 	DisplayMenu(menu, client, MENU_TIME_FOREVER);
 }
-public PerfColorSettingsHandler(Handle menu, MenuAction:action, client, select) {
+public PerfColorSettingsHandler(Handle menu, MenuAction action, client, select) {
 	if(action == MenuAction_Select) {
 		if(select == 0)
-			g_iPerfColor[client] = 0;
-		if(select == 1)
-			g_iPerfColor[client] = 8;
-		if(select == 2)
-			g_iPerfColor[client] = 16;
-		if(select == 3)
-			g_iPerfColor[client] = 24;
-		if(select == 4)
-			g_iPerfColor[client] = 32;
-		if(select == 5)
-			g_iPerfColor[client] = 40;
-		if(select == 6)
-			g_iPerfColor[client] = 48;
-		if(select == 7)
-			g_iPerfColor[client] = 56;
-		if(select == 8)
-			g_iPerfColor[client] = 64;
-		if(select == 9)
-			g_iPerfColor[client] = 72;
-		if(select == 10)
-			g_iPerfColor[client] = 80;
-		if(select == 11)
-			g_iPerfColor[client] = 88;
+			g_iPerfColor[client] = select * 8;
+		else if(select == 1)
+			g_iPerfColor[client] = select * 8;
+		else if(select == 2)
+			g_iPerfColor[client] = select * 8;
+		else if(select == 3)
+			g_iPerfColor[client] = select * 8;
+		else if(select == 4)
+			g_iPerfColor[client] = select * 8;
+		else if(select == 5)
+			g_iPerfColor[client] = select * 8;
+		else if(select == 6)
+			g_iPerfColor[client] = select * 8;
+		else if(select == 7)
+			g_iPerfColor[client] = select * 8;
+		else if(select == 8)
+			g_iPerfColor[client] = select * 8;
+		else if(select == 9)
+			g_iPerfColor[client] = select * 8;
+		else if(select == 10)
+			g_iPerfColor[client] = select * 8;
+		else if(select == 11)
+			g_iPerfColor[client] = select * 8;
 		PerfColorSettings(client);
 		char sCookie[128];
 		IntToString(g_iPerfColor[client], sCookie, sizeof(sCookie));
 		SetClientCookie(client, g_hPerfColorCookie, sCookie);
 	}
-	if(action == MenuAction_Cancel)
+	else if(action == MenuAction_Cancel)
 		SpeedPanelSettings(client);
 }
 public SpeedColorSettings(client) {
@@ -2647,43 +2609,43 @@ public SpeedColorSettings(client) {
 	SetMenuOptionFlags(menu, MENUFLAG_BUTTON_EXIT);
 	DisplayMenu(menu, client, MENU_TIME_FOREVER);
 }
-public SpeedColorSettingsHandler(Handle menu, MenuAction:action, client, select) {
+public SpeedColorSettingsHandler(Handle menu, MenuAction action, client, select) {
 	if(action == MenuAction_Select) {
 		if(select == 0)
-			g_iSpeedColor[client] = 0;
-		if(select == 1)
-			g_iSpeedColor[client] = 8;
-		if(select == 2)
-			g_iSpeedColor[client] = 16;
-		if(select == 3)
-			g_iSpeedColor[client] = 24;
-		if(select == 4)
-			g_iSpeedColor[client] = 32;
-		if(select == 5)
-			g_iSpeedColor[client] = 40;
-		if(select == 6)
-			g_iSpeedColor[client] = 48;
-		if(select == 7)
-			g_iSpeedColor[client] = 56;
-		if(select == 8)
-			g_iSpeedColor[client] = 64;
-		if(select == 9)
-			g_iSpeedColor[client] = 72;
-		if(select == 10)
-			g_iSpeedColor[client] = 80;
-		if(select == 11)
-			g_iSpeedColor[client] = 88;
+			g_iSpeedColor[client] = select * 8;
+		else if(select == 1)
+			g_iSpeedColor[client] = select * 8;
+		else if(select == 2)
+			g_iSpeedColor[client] = select * 8;
+		else if(select == 3)
+			g_iSpeedColor[client] = select * 8;
+		else if(select == 4)
+			g_iSpeedColor[client] = select * 8;
+		else if(select == 5)
+			g_iSpeedColor[client] = select * 8;
+		else if(select == 6)
+			g_iSpeedColor[client] = select * 8;
+		else if(select == 7)
+			g_iSpeedColor[client] = select * 8;
+		else if(select == 8)
+			g_iSpeedColor[client] = select * 8;
+		else if(select == 9)
+			g_iSpeedColor[client] = select * 8;
+		else if(select == 10)
+			g_iSpeedColor[client] = select * 8;
+		else if(select == 11)
+			g_iSpeedColor[client] = select * 8;
 		SpeedColorSettings(client);
 		char sCookie[128];
 		IntToString(g_iSpeedColor[client], sCookie, sizeof(sCookie));
 		SetClientCookie(client, g_hSpeedColorCookie, sCookie);
 	}
-	if(action == MenuAction_Cancel)
+	else if(action == MenuAction_Cancel)
 		SpeedPanelSettings(client);
 }
 public Action Client_StrafeSync(client, args) {
 	g_iStrafeSync[client] = g_iStrafeSync[client] == 1 ? 0 : 1;
-	if (g_iStrafeSync[client] == 1)
+	if(g_iStrafeSync[client] == 1)
 		PrintToChat(client, "Strafe Chat has been \x04enabled\x01.");
 	else
 		PrintToChat(client, "Strafe Chat has been \x0Fdisabled\x01.");
@@ -2695,7 +2657,7 @@ public Action Client_StrafeSync(client, args) {
 public Action Client_Stats(client, args) {
 	g_bdetailView[client]=false;
 	char szSteamId[32];
-	if (IsValidClient(client))
+	if(IsValidClient(client))
 		GetClientAuthId(client, AuthId_Steam2, szSteamId, sizeof(szSteamId));
 	db_viewJumpStats(client, szSteamId)
 	return Plugin_Handled;
@@ -2703,7 +2665,7 @@ public Action Client_Stats(client, args) {
 public Action Client_BStats(client, args) {
 	g_bdetailView[client]=false;
 	char szSteamId[32];
-	if (IsValidClient(client))
+	if(IsValidClient(client))
 		GetClientAuthId(client, AuthId_Steam2, szSteamId, sizeof(szSteamId));
 	db_viewBJumpStats(client, szSteamId)
 	return Plugin_Handled;
@@ -2712,7 +2674,7 @@ public Action Client_QuakeSounds(client, args) {
 	g_iEnableQuakeSounds[client] = g_iEnableQuakeSounds[client] == 1 ? 0 : 1;
 	if(g_iEnableQuakeSounds[client] == 1)
 		PrintToChat(client, "Quake has been \x04enabled\x01.");
-	if(g_iEnableQuakeSounds[client] == 0)
+	else if(g_iEnableQuakeSounds[client] == 0)
 		PrintToChat(client, "Quake has been \x0Fdisabled\x01.");
 	char sCookie[128];
 	IntToString(g_iEnableQuakeSounds[client], sCookie, sizeof(sCookie));
@@ -2723,7 +2685,7 @@ public Action Client_Colorchat(client, args) {
 	g_iColorChat[client] = g_iColorChat[client] == 1 ? 0 : 1;
 	if(g_iColorChat[client] == 1)
 		PrintToChat(client, "Color Chat has been \x04enabled\x01.");
-	if(g_iColorChat[client] == 0)
+	else if(g_iColorChat[client] == 0)
 		PrintToChat(client, "Color Chat has been \x0Fdisabled\x01.");
 	char sCookie[128];
 	IntToString(g_iColorChat[client], sCookie, sizeof(sCookie));
@@ -2762,16 +2724,18 @@ public JumpTopMenu(client) {
 	SetMenuOptionFlags(topmenu2, MENUFLAG_BUTTON_EXIT);
 	DisplayMenu(topmenu2, client, MENU_TIME_FOREVER);
 }
-public JumpTopSelectionHandler(Handle menu, MenuAction:action, param1, param2) {
-	if (action == MenuAction_Select) {
+public JumpTopSelectionHandler(Handle menu, MenuAction action, param1, param2) {
+	if(action == MenuAction_Select) {
 		switch (param2) {
 			case 0:JumpTopMenu(param1);
 			case 1:db_BselectTopLj(param1);
 		}
 	}
+	else if(action == MenuAction_Cancel)
+		delete menu;
 }
-public JumpTopMenuHandler(Handle menu, MenuAction:action, param1, param2) {
-	if (action == MenuAction_Select) {
+public JumpTopMenuHandler(Handle menu, MenuAction action, param1, param2) {
+	if(action == MenuAction_Select) {
 		switch (param2) {
 			case 0:db_selectTopLj(param1);
 			case 1:db_selectTopLjBlock(param1);
@@ -2781,90 +2745,90 @@ public JumpTopMenuHandler(Handle menu, MenuAction:action, param1, param2) {
 			case 5:db_selectTopWj(param1);
 		}
 	}
-	else if (action == MenuAction_Cancel)
+	else if(action == MenuAction_Cancel)
 		TopMenu(param1)
 }
 //SQL
 public db_updateLjRecord(client) {
 	char szQuery[255];
 	char szSteamId[32];
-	if (IsValidClient(client))
+	if(IsValidClient(client))
 		GetClientAuthId(client, AuthId_Steam2, szSteamId, sizeof(szSteamId));
 	else
 		return;
 	Format(szQuery, 255, sql_selectPlayerJumpLJ, szSteamId);
-	if (!IsFakeClient(client))
+	if(!IsFakeClient(client))
 		SQL_TQuery(g_hDb, SQL_UpdateLjRecordCallback, szQuery, client,DBPrio_Low);
 }
 public db_BupdateLjRecord(client) {
 	char szQuery[255];
 	char szSteamId[32];
-	if (IsValidClient(client))
+	if(IsValidClient(client))
 		GetClientAuthId(client, AuthId_Steam2, szSteamId, sizeof(szSteamId));
 	else
 		return;
 	Format(szQuery, 255, sql_BselectPlayerJumpLJ, szSteamId);
-	if (!IsFakeClient(client))
+	if(!IsFakeClient(client))
 		SQL_TQuery(g_hBDb, SQL_BUpdateLjRecordCallback, szQuery, client,DBPrio_Low);
 }
 public db_updateLjBlockRecord(client) {
 	char szQuery[255];
 	char szSteamId[32];
-	if (IsValidClient(client))
+	if(IsValidClient(client))
 		GetClientAuthId(client, AuthId_Steam2, szSteamId, sizeof(szSteamId));
 	else
 		return;
 	Format(szQuery, 255, sql_selectPlayerJumpLJBlock, szSteamId);
-	if (!IsFakeClient(client))
+	if(!IsFakeClient(client))
 		SQL_TQuery(g_hDb, SQL_UpdateLjBlockRecordCallback, szQuery, client,DBPrio_Low);
 }
 public db_updateWjRecord(client) {
 	char szQuery[255];
 	char szSteamId[32];
-	if (IsValidClient(client))
+	if(IsValidClient(client))
 		GetClientAuthId(client, AuthId_Steam2, szSteamId, sizeof(szSteamId));
 	else
 		return;
 	Format(szQuery, 255, sql_selectPlayerJumpWJ, szSteamId);
-	if (!IsFakeClient(client))
+	if(!IsFakeClient(client))
 		SQL_TQuery(g_hDb, SQL_UpdateWjRecordCallback, szQuery, client,DBPrio_Low);
 }
 public db_updateBhopRecord(client) {
 	char szQuery[255];
 	char szSteamId[32];
-	if (IsValidClient(client))
+	if(IsValidClient(client))
 		GetClientAuthId(client, AuthId_Steam2, szSteamId, sizeof(szSteamId));
 	else
 		return;
 	Format(szQuery, 255, sql_selectPlayerJumpBhop, szSteamId);
-	if (!IsFakeClient(client))
+	if(!IsFakeClient(client))
 		SQL_TQuery(g_hDb, SQL_UpdateBhopRecordCallback, szQuery, client,DBPrio_Low);
 }
 public db_updateDropBhopRecord(client) {
 	char szQuery[255];
 	char szSteamId[32];
-	if (IsValidClient(client))
+	if(IsValidClient(client))
 		GetClientAuthId(client, AuthId_Steam2, szSteamId, sizeof(szSteamId));
 	else
 		return;
 	Format(szQuery, 255, sql_selectPlayerJumpDropBhop, szSteamId);
-	if (!IsFakeClient(client))
+	if(!IsFakeClient(client))
 		SQL_TQuery(g_hDb, SQL_UpdateDropBhopRecordCallback, szQuery, client,DBPrio_Low);
 }
 public db_updateMultiBhopRecord(client) {
 	char szQuery[255];
 	char szSteamId[32];
-	if (IsValidClient(client))
+	if(IsValidClient(client))
 		GetClientAuthId(client, AuthId_Steam2, szSteamId, sizeof(szSteamId));
 	else
 		return;
 	Format(szQuery, 255, sql_selectPlayerJumpMultiBhop, szSteamId);
-	if (!IsFakeClient(client))
+	if(!IsFakeClient(client))
 		SQL_TQuery(g_hDb, SQL_UpdateMultiBhopRecordCallback, szQuery, client,DBPrio_Low);
 }
 public SQL_UpdateLjRecordCallback(Handle owner, Handle hndl, const char[] error, any:data) {
 	int client = data;
-	if (IsValidClient(client)) {
+	if(IsValidClient(client)) {
 		char szQuery[512];
 		char szUName[MAX_NAME_LENGTH];
 		GetClientName(client, szUName, MAX_NAME_LENGTH);
@@ -2884,7 +2848,7 @@ public SQL_UpdateLjRecordCallback(Handle owner, Handle hndl, const char[] error,
 }
 public SQL_BUpdateLjRecordCallback(Handle owner, Handle hndl, const char[] error, any:data) {
 	int client = data;
-	if (IsValidClient(client)) {
+	if(IsValidClient(client)) {
 		char szQuery[512];
 		char szUName[MAX_NAME_LENGTH];
 		GetClientName(client, szUName, MAX_NAME_LENGTH);
@@ -2911,7 +2875,7 @@ public SQL_viewBhop2RecordCallback2(Handle owner, Handle hndl, const char[] erro
 		int client = ReadPackCell(pack);
 		ReadPackString(pack, szName, MAX_NAME_LENGTH);
 		CloseHandle(pack);
-		if (rank < 21 && rank < g_js_BhopRank[client]) {
+		if(rank < 21 && rank < g_js_BhopRank[client]) {
 			g_js_BhopRank[client] = rank;
 			for(new i = 1; i <= MaxClients; i++) {
 				if(IsValidClient(i) && !IsFakeClient(i)) {
@@ -2931,7 +2895,7 @@ public SQL_viewBBhop2RecordCallback2(Handle owner, Handle hndl, const char[] err
 		int client = ReadPackCell(pack);
 		ReadPackString(pack, szName, MAX_NAME_LENGTH);
 		CloseHandle(pack);
-		if (rank < 21 && rank < g_js_BBhopRank[client]) {
+		if(rank < 21 && rank < g_js_BBhopRank[client]) {
 			g_js_BBhopRank[client] = rank;
 			for(new i = 1; i <= MaxClients; i++) {
 				if(IsValidClient(i) && !IsFakeClient(i)) {
@@ -2951,7 +2915,7 @@ public SQL_viewDropBhop2RecordCallback2(Handle owner, Handle hndl, const char[] 
 		int client = ReadPackCell(pack);
 		ReadPackString(pack, szName, MAX_NAME_LENGTH);
 		CloseHandle(pack);
-		if (rank < 21 && rank < g_js_DropBhopRank[client]) {
+		if(rank < 21 && rank < g_js_DropBhopRank[client]) {
 			g_js_DropBhopRank[client] = rank;
 			for(new i = 1; i <= MaxClients; i++) {
 				if(IsValidClient(i) && !IsFakeClient(i)) {
@@ -2971,7 +2935,7 @@ public SQL_viewBDropBhop2RecordCallback2(Handle owner, Handle hndl, const char[]
 		int client = ReadPackCell(pack);
 		ReadPackString(pack, szName, MAX_NAME_LENGTH);
 		CloseHandle(pack);
-		if (rank < 21 && rank < g_js_BDropBhopRank[client]) {
+		if(rank < 21 && rank < g_js_BDropBhopRank[client]) {
 			g_js_BDropBhopRank[client] = rank;
 			for(new i = 1; i <= MaxClients; i++) {
 				if(IsValidClient(i) && !IsFakeClient(i)) {
@@ -2985,7 +2949,7 @@ public SQL_viewBDropBhop2RecordCallback2(Handle owner, Handle hndl, const char[]
 public db_viewMultiBhopRecord2(client) {
 	char szQuery[512];
 	char szSteamId[32];
-	if (IsValidClient(client))
+	if(IsValidClient(client))
 		GetClientAuthId(client, AuthId_Steam2, szSteamId, sizeof(szSteamId));
 	else
 		return;
@@ -3016,7 +2980,7 @@ public SQL_viewMultiBhop2RecordCallback2(Handle owner, Handle hndl, const char[]
 		int client = ReadPackCell(pack);
 		ReadPackString(pack, szName, MAX_NAME_LENGTH);
 		CloseHandle(pack);
-		if (rank < 21 && rank < g_js_MultiBhopRank[client]) {
+		if(rank < 21 && rank < g_js_MultiBhopRank[client]) {
 			g_js_MultiBhopRank[client] = rank;
 			for(new i = 1; i <= MaxClients; i++) {
 				if(IsValidClient(i) && !IsFakeClient(i)) {
@@ -3036,7 +3000,7 @@ public SQL_viewBMultiBhop2RecordCallback2(Handle owner, Handle hndl, const char[
 		int client = ReadPackCell(pack);
 		ReadPackString(pack, szName, MAX_NAME_LENGTH);
 		CloseHandle(pack);
-		if (rank < 21 && rank < g_js_MultiBhopRank[client]) {
+		if(rank < 21 && rank < g_js_MultiBhopRank[client]) {
 			g_js_MultiBhopRank[client] = rank;
 			for(new i = 1; i <= MaxClients; i++) {
 				if(IsValidClient(i) && !IsFakeClient(i)) {
@@ -3050,7 +3014,7 @@ public SQL_viewBMultiBhop2RecordCallback2(Handle owner, Handle hndl, const char[
 public db_viewLjRecord2(client) {
 	char szQuery[512];
 	char szSteamId[32];
-	if (IsValidClient(client))
+	if(IsValidClient(client))
 		GetClientAuthId(client, AuthId_Steam2, szSteamId, sizeof(szSteamId));
 	else
 		return;
@@ -3060,7 +3024,7 @@ public db_viewLjRecord2(client) {
 public db_viewBLjRecord2(client) {
 	char szQuery[512];
 	char szSteamId[32];
-	if (IsValidClient(client))
+	if(IsValidClient(client))
 		GetClientAuthId(client, AuthId_Steam2, szSteamId, sizeof(szSteamId));
 	else
 		return;
@@ -3070,7 +3034,7 @@ public db_viewBLjRecord2(client) {
 public db_viewLjBlockRecord2(client) {
 	char szQuery[512];
 	char szSteamId[32];
-	if (IsValidClient(client))
+	if(IsValidClient(client))
 		GetClientAuthId(client, AuthId_Steam2, szSteamId, sizeof(szSteamId));
 	else
 		return;
@@ -3131,7 +3095,7 @@ public SQL_viewLjBlock2RecordCallback2(Handle owner, Handle hndl, const char[] e
 		int client = ReadPackCell(pack);
 		ReadPackString(pack, szName, MAX_NAME_LENGTH);
 		CloseHandle(pack);
-		if (rank < 21 && rank < g_js_LjBlockRank[client]) {
+		if(rank < 21 && rank < g_js_LjBlockRank[client]) {
 			g_js_LjBlockRank[client] = rank;
 			for(new i = 1; i <= MaxClients; i++) {
 				if(IsValidClient(i) && !IsFakeClient(i)) {
@@ -3151,7 +3115,7 @@ public SQL_viewBLjBlock2RecordCallback2(Handle owner, Handle hndl, const char[] 
 		int client = ReadPackCell(pack);
 		ReadPackString(pack, szName, MAX_NAME_LENGTH);
 		CloseHandle(pack);
-		if (rank < 21 && rank < g_js_BLjBlockRank[client]) {
+		if(rank < 21 && rank < g_js_BLjBlockRank[client]) {
 			g_js_BLjBlockRank[client] = rank;
 			for(new i = 1; i <= MaxClients; i++) {
 				if(IsValidClient(i) && !IsFakeClient(i)) {
@@ -3171,7 +3135,7 @@ public SQL_viewLj2RecordCallback2(Handle owner, Handle hndl, const char[] error,
 		int client = ReadPackCell(pack);
 		ReadPackString(pack, szName, MAX_NAME_LENGTH);
 		CloseHandle(pack);
-		if (rank < 21 && rank < g_js_LjRank[client]) {
+		if(rank < 21 && rank < g_js_LjRank[client]) {
 			g_js_LjRank[client] = rank;
 			for(new i = 1; i <= MaxClients; i++) {
 				if(IsValidClient(i) && !IsFakeClient(i)) {
@@ -3191,7 +3155,7 @@ public SQL_viewBLj2RecordCallback2(Handle owner, Handle hndl, const char[] error
 		int client = ReadPackCell(pack);
 		ReadPackString(pack, szName, MAX_NAME_LENGTH);
 		CloseHandle(pack);
-		if (rank < 21 && rank < g_js_BLjRank[client]) {
+		if(rank < 21 && rank < g_js_BLjRank[client]) {
 			g_js_BLjRank[client] = rank;
 			for(new i = 1; i <= MaxClients; i++) {
 				if(IsValidClient(i) && !IsFakeClient(i)) {
@@ -3205,7 +3169,7 @@ public SQL_viewBLj2RecordCallback2(Handle owner, Handle hndl, const char[] error
 public db_viewWjRecord2(client) {
 	char szQuery[512];
 	char szSteamId[32];
-	if (IsValidClient(client))
+	if(IsValidClient(client))
 		GetClientAuthId(client, AuthId_Steam2, szSteamId, sizeof(szSteamId));
 	else
 		return;
@@ -3236,7 +3200,7 @@ public SQL_viewWj2RecordCallback2(Handle owner, Handle hndl, const char[] error,
 		int client = ReadPackCell(pack);
 		ReadPackString(pack, szName, MAX_NAME_LENGTH);
 		CloseHandle(pack);
-		if (rank < 21 && rank < g_js_WjRank[client]) {
+		if(rank < 21 && rank < g_js_WjRank[client]) {
 			g_js_WjRank[client] = rank;
 			for(new i = 1; i <= MaxClients; i++) {
 				if(IsValidClient(i) && !IsFakeClient(i)) {
@@ -3256,7 +3220,7 @@ public SQL_viewBWj2RecordCallback2(Handle owner, Handle hndl, const char[] error
 		int client = ReadPackCell(pack);
 		ReadPackString(pack, szName, MAX_NAME_LENGTH);
 		CloseHandle(pack);
-		if (rank < 21 && rank < g_js_BWjRank[client]) {
+		if(rank < 21 && rank < g_js_BWjRank[client]) {
 			g_js_BWjRank[client] = rank;
 			for(new i = 1; i <= MaxClients; i++) {
 				if(IsValidClient(i) && !IsFakeClient(i)) {
@@ -3269,7 +3233,7 @@ public SQL_viewBWj2RecordCallback2(Handle owner, Handle hndl, const char[] error
 }
 public SQL_UpdateLjBlockRecordCallback(Handle owner, Handle hndl, const char[] error, any:data) {
 	int client = data;
-	if (IsValidClient(client)) {
+	if(IsValidClient(client)) {
 		char szQuery[512];
 		char szUName[MAX_NAME_LENGTH];
 		GetClientName(client, szUName, MAX_NAME_LENGTH);
@@ -3281,7 +3245,7 @@ public SQL_UpdateLjBlockRecordCallback(Handle owner, Handle hndl, const char[] e
 			Format(szQuery, 512, sql_updateLjBlock, szName, g_js_Personal_LjBlock_Record[client], g_js_fPersonal_LjBlockRecord_Dist[client], g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client], g_js_Strafes_Final[client],g_js_Sync_Final[client],g_flastHeight[client], szSteamId);
 			SQL_TQuery(g_hDb, SQL_CheckCallback, szQuery,DBPrio_Low);
 		} else {
-			Format(szQuery, 512, sql_insertPlayerJumpLjBlock , szSteamId, szName, g_js_Personal_LjBlock_Record[client], g_js_fPersonal_LjBlockRecord_Dist[client], g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client], g_js_Strafes_Final[client],g_js_Sync_Final[client],g_flastHeight[client]);
+			Format(szQuery, 512, sql_insertPlayerJumpLjBlock, szSteamId, szName, g_js_Personal_LjBlock_Record[client], g_js_fPersonal_LjBlockRecord_Dist[client], g_js_fPreStrafe[client], g_js_fMax_Speed_Final[client], g_js_Strafes_Final[client],g_js_Sync_Final[client],g_flastHeight[client]);
 			SQL_TQuery(g_hDb, SQL_CheckCallback, szQuery,DBPrio_Low);
 		}
 		db_viewLjBlockRecord2(client);
@@ -3289,7 +3253,7 @@ public SQL_UpdateLjBlockRecordCallback(Handle owner, Handle hndl, const char[] e
 }
 public SQL_UpdateWjRecordCallback(Handle owner, Handle hndl, const char[] error, any:data) {
 	int client = data;
-	if (IsValidClient(client)) {
+	if(IsValidClient(client)) {
 		char szQuery[512];
 		char szUName[MAX_NAME_LENGTH];
 		GetClientName(client, szUName, MAX_NAME_LENGTH);
@@ -3309,7 +3273,7 @@ public SQL_UpdateWjRecordCallback(Handle owner, Handle hndl, const char[] error,
 }
 public SQL_UpdateDropBhopRecordCallback(Handle owner, Handle hndl, const char[] error, any:data) {
 	int client = data;
-	if (IsValidClient(client)) {
+	if(IsValidClient(client)) {
 		char szQuery[512];
 		char szUName[MAX_NAME_LENGTH];
 		GetClientName(client, szUName, MAX_NAME_LENGTH);
@@ -3330,7 +3294,7 @@ public SQL_UpdateDropBhopRecordCallback(Handle owner, Handle hndl, const char[] 
 public db_viewDropBhopRecord2(client) {
 	char szQuery[512];
 	char szSteamId[32];
-	if (IsValidClient(client))
+	if(IsValidClient(client))
 		GetClientAuthId(client, AuthId_Steam2, szSteamId, sizeof(szSteamId));
 	else
 		return;
@@ -3369,7 +3333,7 @@ public SQL_viewBhop2RecordCallback(Handle owner, Handle hndl, const char[] error
 }
 public SQL_UpdateBhopRecordCallback(Handle owner, Handle hndl, const char[] error, any:data) {
 	int client = data;
-	if (IsValidClient(client)) {
+	if(IsValidClient(client)) {
 		char szQuery[512];
 		char szUName[MAX_NAME_LENGTH];
 		GetClientName(client, szUName, MAX_NAME_LENGTH);
@@ -3390,7 +3354,7 @@ public SQL_UpdateBhopRecordCallback(Handle owner, Handle hndl, const char[] erro
 public db_viewBhopRecord2(client) {
 	char szQuery[512];
 	char szSteamId[32];
-	if (IsValidClient(client))
+	if(IsValidClient(client))
 		GetClientAuthId(client, AuthId_Steam2, szSteamId, sizeof(szSteamId));
 	else
 		return;
@@ -3399,13 +3363,13 @@ public db_viewBhopRecord2(client) {
 }
 public SQL_UpdateMultiBhopRecordCallback(Handle owner, Handle hndl, const char[] error, any:data) {
 	int client = data;
-	if (IsValidClient(client)) {
+	if(IsValidClient(client)) {
 		char szQuery[512];
 		char szUName[MAX_NAME_LENGTH];
 		GetClientName(client, szUName, MAX_NAME_LENGTH);
 		char szName[MAX_NAME_LENGTH*2+1];
 		char szSteamId[32];
-		if (IsValidClient(client))
+		if(IsValidClient(client))
 			GetClientAuthId(client, AuthId_Steam2, szSteamId, sizeof(szSteamId));
 		else
 			return;
@@ -3420,17 +3384,17 @@ public SQL_UpdateMultiBhopRecordCallback(Handle owner, Handle hndl, const char[]
 		db_viewMultiBhopRecord2(client);
 	}
 }
-public LjBlockJumpMenuHandler1(Handle menu, MenuAction:action, param1, param2) {
-	if (action == MenuAction_Select)
+public LjBlockJumpMenuHandler1(Handle menu, MenuAction action, param1, param2) {
+	if(action == MenuAction_Select)
 		JumpTopMenu(param1);
-	else if (action == MenuAction_End)
-		CloseHandle(menu);
+	else if(action == MenuAction_Cancel)
+		delete menu;
 }
-public BLjBlockJumpMenuHandler1(Handle menu, MenuAction:action, param1, param2) {
-	if (action == MenuAction_Select)
+public BLjBlockJumpMenuHandler1(Handle menu, MenuAction action, param1, param2) {
+	if(action == MenuAction_Select)
 		JumpTopMenu(param1);
-	else if (action == MenuAction_End)
-		CloseHandle(menu);
+	else if(action == MenuAction_Cancel)
+		delete menu;
 }
 public db_selectTopLj(client) {
 	char szQuery[1024];
@@ -3479,7 +3443,7 @@ public sql_selectPlayerJumpTopLJBlockCallback(Handle owner, Handle hndl, const c
 	Handle menu = CreateMenu(LjBlockJumpMenuHandler1);
 	SetMenuTitle(menu, "Top 20 Block Longjump\n    Rank    Block   Distance           Strafes      Player");
 	SetMenuPagination(menu, 5);
-	if (SQL_HasResultSet(hndl)) {
+	if(SQL_HasResultSet(hndl)) {
 		int i = 1;
 		while (SQL_FetchRow(hndl)) {
 			SQL_FetchString(hndl, 0, szName, 64);
@@ -3487,11 +3451,11 @@ public sql_selectPlayerJumpTopLJBlockCallback(Handle owner, Handle hndl, const c
 			ljrecord = SQL_FetchFloat(hndl, 2);
 			strafes = SQL_FetchInt(hndl, 3);
 			SQL_FetchString(hndl, 4, szSteamID, 32);
-			if (strafes < 10)
+			if(strafes < 10)
 				Format(szStrafes, 32, " %i ", strafes);
 			else
 				Format(szStrafes, 32, "%i", strafes);
-			if (i < 10)
+			if(i < 10)
 				Format(szValue, 128, "[0%i.]    %i     %.3f units       %s      » %s", i, ljblock, ljrecord, szStrafes, szName);
 			else
 				Format(szValue, 128, "[%i.]    %i     %.3f units       %s      » %s", i, ljblock, ljrecord, szStrafes, szName);
@@ -3513,18 +3477,18 @@ public sql_selectPlayerJumpTopLJCallback(Handle owner, Handle hndl, const char[]
 	Handle menu = CreateMenu(LjJumpMenuHandler1);
 	SetMenuTitle(menu, "Top 20 Longjump\n    Rank    Distance           Strafes      Player");
 	SetMenuPagination(menu, 5);
-	if (SQL_HasResultSet(hndl)) {
+	if(SQL_HasResultSet(hndl)) {
 		int i = 1;
 		while (SQL_FetchRow(hndl)) {
 			SQL_FetchString(hndl, 0, szName, 64);
 			ljrecord = SQL_FetchFloat(hndl, 1);
 			strafes = SQL_FetchInt(hndl, 2);
 			SQL_FetchString(hndl, 3, szSteamID, 32);
-			if (strafes < 10)
+			if(strafes < 10)
 				Format(szStrafes, 32, " %i ", strafes);
 			else
 				Format(szStrafes, 32, "%i", strafes);
-			if (i < 10)
+			if(i < 10)
 				Format(szValue, 128, "[0%i.]    %.3f units      %s      » %s", i, ljrecord, szStrafes, szName);
 			else
 				Format(szValue, 128, "[%i.]    %.3f units      %s      » %s", i, ljrecord, szStrafes, szName);
@@ -3546,18 +3510,18 @@ public sql_BselectPlayerJumpTopLJCallback(Handle owner, Handle hndl, const char[
 	Handle menu = CreateMenu(BLjJumpMenuHandler1);
 	SetMenuTitle(menu, "Top 20 Bugged Longjump\n    Rank    Distance           Strafes      Player");
 	SetMenuPagination(menu, 5);
-	if (SQL_HasResultSet(hndl)) {
+	if(SQL_HasResultSet(hndl)) {
 		int i = 1;
 		while (SQL_FetchRow(hndl)) {
 			SQL_FetchString(hndl, 0, szName, 64);
 			bljrecord = SQL_FetchFloat(hndl, 1);
 			strafes = SQL_FetchInt(hndl, 2);
 			SQL_FetchString(hndl, 3, szSteamID, 32);
-			if (strafes < 10)
+			if(strafes < 10)
 				Format(szStrafes, 32, " %i ", strafes);
 			else
 				Format(szStrafes, 32, "%i", strafes);
-			if (i < 10)
+			if(i < 10)
 				Format(szValue, 128, "[0%i.]    %.3f units      %s      » %s", i, bljrecord, szStrafes, szName);
 			else
 				Format(szValue, 128, "[%i.]    %.3f units      %s      » %s", i, bljrecord, szStrafes, szName);
@@ -3579,18 +3543,18 @@ public sql_selectPlayerJumpTopWJCallback(Handle owner, Handle hndl, const char[]
 	Handle menu = CreateMenu(WjJumpMenuHandler1);
 	SetMenuTitle(menu, "Top 20 Weirdjump\n    Rank    Distance           Strafes      Player");
 	SetMenuPagination(menu, 5);
-	if (SQL_HasResultSet(hndl)) {
+	if(SQL_HasResultSet(hndl)) {
 		int i = 1;
 		while (SQL_FetchRow(hndl)) {
 			SQL_FetchString(hndl, 0, szName, 64);
 			ljrecord = SQL_FetchFloat(hndl, 1);
 			strafes = SQL_FetchInt(hndl, 2);
 			SQL_FetchString(hndl, 3, szSteamID, 32);
-			if (strafes < 10)
+			if(strafes < 10)
 				Format(szStrafes, 32, " %i ", strafes);
 			else
 				Format(szStrafes, 32, "%i", strafes);
-			if (i < 10)
+			if(i < 10)
 				Format(szValue, 128, "[0%i.]    %.3f units      %s      » %s", i, ljrecord, szStrafes, szName);
 			else
 				Format(szValue, 128, "[%i.]    %.3f units      %s      » %s", i, ljrecord, szStrafes, szName);
@@ -3612,18 +3576,18 @@ public sql_selectPlayerJumpTopBhopCallback(Handle owner, Handle hndl, const char
 	Handle menu = CreateMenu(BhopJumpMenuHandler1);
 	SetMenuTitle(menu, "Top 20 Bunnyhop\n    Rank    Distance           Strafes      Player");
 	SetMenuPagination(menu, 5);
-	if (SQL_HasResultSet(hndl)) {
+	if(SQL_HasResultSet(hndl)) {
 		int i = 1;
 		while (SQL_FetchRow(hndl)) {
 			SQL_FetchString(hndl, 0, szName, 64);
 			bhoprecord = SQL_FetchFloat(hndl, 1);
 			strafes = SQL_FetchInt(hndl, 2);
 			SQL_FetchString(hndl, 3, szSteamID, 32);
-			if (strafes < 10)
+			if(strafes < 10)
 				Format(szStrafes, 32, " %i ", strafes);
 			else
 				Format(szStrafes, 32, "%i", strafes);
-			if (i < 10)
+			if(i < 10)
 				Format(szValue, 128, "[0%i.]    %.3f units      %s      » %s", i, bhoprecord, szStrafes, szName);
 			else
 				Format(szValue, 128, "[%i.]    %.3f units      %s      » %s", i, bhoprecord, szStrafes, szName);
@@ -3645,18 +3609,18 @@ public sql_selectPlayerJumpTopDropBhopCallback(Handle owner, Handle hndl, const 
 	Handle menu = CreateMenu(DropBhopJumpMenuHandler1);
 	SetMenuTitle(menu, "Top 20 Drop-Bunnyhop\n    Rank    Distance           Strafes      Player");
 	SetMenuPagination(menu, 5);
-	if (SQL_HasResultSet(hndl)) {
+	if(SQL_HasResultSet(hndl)) {
 		int i = 1;
 		while (SQL_FetchRow(hndl)) {
 			SQL_FetchString(hndl, 0, szName, 64);
 			bhoprecord = SQL_FetchFloat(hndl, 1);
 			strafes = SQL_FetchInt(hndl, 2);
 			SQL_FetchString(hndl, 3, szSteamID, 32);
-			if (strafes < 10)
+			if(strafes < 10)
 				Format(szStrafes, 32, " %i ", strafes);
 			else
 				Format(szStrafes, 32, "%i", strafes);
-			if (i < 10)
+			if(i < 10)
 				Format(szValue, 128, "[0%i.]    %.3f units      %s      » %s", i, bhoprecord, szStrafes, szName);
 			else
 				Format(szValue, 128, "[%i.]    %.3f units      %s      » %s", i, bhoprecord, szStrafes, szName);
@@ -3678,18 +3642,18 @@ public sql_selectPlayerJumpTopMultiBhopCallback(Handle owner, Handle hndl, const
 	Handle menu = CreateMenu(MultiBhopJumpMenuHandler1);
 	SetMenuTitle(menu, "Top 20 Multi-Bunnyhop\n    Rank    Distance           Strafes      Player");
 	SetMenuPagination(menu, 5);
-	if (SQL_HasResultSet(hndl)) {
+	if(SQL_HasResultSet(hndl)) {
 		int i = 1;
 		while (SQL_FetchRow(hndl)) {
 			SQL_FetchString(hndl, 0, szName, 64);
 			multibhoprecord = SQL_FetchFloat(hndl, 1);
 			strafes = SQL_FetchInt(hndl, 2);
 			SQL_FetchString(hndl, 3, szSteamID, 32);
-			if (strafes < 10)
+			if(strafes < 10)
 				Format(szStrafes, 32, " %i ", strafes);
 			else
 				Format(szStrafes, 32, "%i", strafes);
-			if (i < 10)
+			if(i < 10)
 				Format(szValue, 128, "[0%i.]    %.3f units      %s      » %s", i, multibhoprecord, szStrafes, szName);
 			else
 				Format(szValue, 128, "[%i.]    %.3f units      %s      » %s", i, multibhoprecord, szStrafes, szName);
@@ -3700,105 +3664,105 @@ public sql_selectPlayerJumpTopMultiBhopCallback(Handle owner, Handle hndl, const
 	SetMenuOptionFlags(menu, MENUFLAG_BUTTON_EXIT);
 	DisplayMenu(menu, client, MENU_TIME_FOREVER);
 }
-public LjJumpMenuHandler1(Handle menu, MenuAction:action, param1, param2) {
-	if (action == MenuAction_Select) {
+public LjJumpMenuHandler1(Handle menu, MenuAction action, param1, param2) {
+	if(action == MenuAction_Select) {
 		g_bdetailView[param1]=true;
 		char id[32];
 		GetMenuItem(menu, param2, id, sizeof(id));
 		db_viewJumpStats(param1, id);
 	}
-	else if (action == MenuAction_End)
-		CloseHandle(menu);
+	else if(action == MenuAction_End)
+		delete menu;
 }
-public BLjJumpMenuHandler1(Handle menu, MenuAction:action, param1, param2) {
-	if (action == MenuAction_Select) {
+public BLjJumpMenuHandler1(Handle menu, MenuAction action, param1, param2) {
+	if(action == MenuAction_Select) {
 		g_bdetailView[param1]=true;
 		char id[32];
 		GetMenuItem(menu, param2, id, sizeof(id));
 		db_viewBJumpStats(param1, id);
 	}
-	else if (action == MenuAction_End)
-		CloseHandle(menu);
+	else if(action == MenuAction_End)
+		delete menu;
 }
-public WjJumpMenuHandler1(Handle menu, MenuAction:action, param1, param2) {
-	if (action == MenuAction_Select) {
+public WjJumpMenuHandler1(Handle menu, MenuAction action, param1, param2) {
+	if(action == MenuAction_Select) {
 		g_bdetailView[param1]=true;
 		char id[32];
 		GetMenuItem(menu, param2, id, sizeof(id));
 		db_viewJumpStats(param1, id);
 	}
-	else if (action == MenuAction_End)
-		CloseHandle(menu);
+	else if(action == MenuAction_End)
+		delete menu;
 }
-public BWjJumpMenuHandler1(Handle menu, MenuAction:action, param1, param2) {
-	if (action == MenuAction_Select) {
+public BWjJumpMenuHandler1(Handle menu, MenuAction action, param1, param2) {
+	if(action == MenuAction_Select) {
 		g_bdetailView[param1]=true;
 		char id[32];
 		GetMenuItem(menu, param2, id, sizeof(id));
 		db_viewBJumpStats(param1, id);
 	}
-	else if (action == MenuAction_End)
-		CloseHandle(menu);
+	else if(action == MenuAction_End)
+		delete menu;
 }
-public BhopJumpMenuHandler1(Handle menu, MenuAction:action, param1, param2) {
-	if (action == MenuAction_Select) {
+public BhopJumpMenuHandler1(Handle menu, MenuAction action, param1, param2) {
+	if(action == MenuAction_Select) {
 		g_bdetailView[param1]=true;
 		char id[32];
 		GetMenuItem(menu, param2, id, sizeof(id));
 		db_viewJumpStats(param1, id);
 	}
-	else if (action == MenuAction_End)
-		CloseHandle(menu);
+	else if(action == MenuAction_End)
+		delete menu;
 }
-public BBhopJumpMenuHandler1(Handle menu, MenuAction:action, param1, param2) {
-	if (action == MenuAction_Select) {
+public BBhopJumpMenuHandler1(Handle menu, MenuAction action, param1, param2) {
+	if(action == MenuAction_Select) {
 		g_bdetailView[param1]=true;
 		char id[32];
 		GetMenuItem(menu, param2, id, sizeof(id));
 		db_viewBJumpStats(param1, id);
 	}
-	else if (action == MenuAction_End)
-		CloseHandle(menu);
+	else if(action == MenuAction_End)
+		delete menu;
 }
-public DropBhopJumpMenuHandler1(Handle menu, MenuAction:action, param1, param2) {
-	if (action == MenuAction_Select) {
+public DropBhopJumpMenuHandler1(Handle menu, MenuAction action, param1, param2) {
+	if(action == MenuAction_Select) {
 		g_bdetailView[param1]=true;
 		char id[32];
 		GetMenuItem(menu, param2, id, sizeof(id));
 		db_viewJumpStats(param1, id);
 	}
-	else if (action == MenuAction_End)
-		CloseHandle(menu);
+	else if(action == MenuAction_End)
+		delete menu;
 }
-public BDropBhopJumpMenuHandler1(Handle menu, MenuAction:action, param1, param2) {
-	if (action == MenuAction_Select) {
+public BDropBhopJumpMenuHandler1(Handle menu, MenuAction action, param1, param2) {
+	if(action == MenuAction_Select) {
 		g_bdetailView[param1]=true;
 		char id[32];
 		GetMenuItem(menu, param2, id, sizeof(id));
 		db_viewBJumpStats(param1, id);
 	}
-	else if (action == MenuAction_End)
-		CloseHandle(menu);
+	else if(action == MenuAction_End)
+		delete menu;
 }
-public MultiBhopJumpMenuHandler1(Handle menu, MenuAction:action, param1, param2) {
-	if (action == MenuAction_Select) {
+public MultiBhopJumpMenuHandler1(Handle menu, MenuAction action, param1, param2) {
+	if(action == MenuAction_Select) {
 		g_bdetailView[param1]=true;
 		char id[32];
 		GetMenuItem(menu, param2, id, sizeof(id));
 		db_viewJumpStats(param1, id);
 	}
-	else if (action == MenuAction_End)
-		CloseHandle(menu);
+	else if(action == MenuAction_End)
+		delete menu;
 }
-public BMultiBhopJumpMenuHandler1(Handle menu, MenuAction:action, param1, param2) {
-	if (action == MenuAction_Select) {
+public BMultiBhopJumpMenuHandler1(Handle menu, MenuAction action, param1, param2) {
+	if(action == MenuAction_Select) {
 		g_bdetailView[param1]=true;
 		char id[32];
 		GetMenuItem(menu, param2, id, sizeof(id));
 		db_viewBJumpStats(param1, id);
 	}
-	else if (action == MenuAction_End)
-		CloseHandle(menu);
+	else if(action == MenuAction_End)
+		delete menu;
 }
 public SQL_CheckCallback(Handle owner, Handle hndl, const char[] error, any:data) {
 }
@@ -3814,7 +3778,7 @@ public db_viewBJumpStats(client, char szSteamId[32]) {
 }
 public SQL_ViewJumpStatsCallback(Handle owner, Handle hndl, const char[] error, any:data) {
 	int client = data;
-	if (SQL_HasResultSet(hndl) && SQL_FetchRow(hndl)) {
+	if(SQL_HasResultSet(hndl) && SQL_FetchRow(hndl)) {
 		char szSteamId[32];
 		char szName[17];
 		char szVr[255];
@@ -3865,12 +3829,12 @@ public SQL_ViewJumpStatsCallback(Handle owner, Handle hndl, const char[] error, 
 		int ljblockstrafes = SQL_FetchInt(hndl, 37);
 		int ljblocksync = SQL_FetchInt(hndl, 38);
 		float ljblockheight = SQL_FetchFloat(hndl, 39);
-		if (bhoprecord > 0.0 || ljrecord > 0.0 || multibhoprecord > 0.0 || wjrecord > 0.0 || dropbhoprecord > 0.0) { // || ljblockdist > 0
+		if(bhoprecord > 0.0 || ljrecord > 0.0 || multibhoprecord > 0.0 || wjrecord > 0.0 || dropbhoprecord > 0.0) { // || ljblockdist > 0
 			Format(szVr, 255, "JS: %s (%s)\nType               Distance  Strafes Pre        Max      Height  Sync", szName, szSteamId);
 			Menu menu = new Menu(JumpStatsMenuHandler);
 			menu.SetTitle(szVr);
-			if (ljrecord > 0.0) {
-				if (ljstrafes > 9) {
+			if(ljrecord > 0.0) {
+				if(ljstrafes > 9) {
 					Format(szVr, 255, "LJ:              %.3f     %i      %.2f   %.2f  %.1f    %i%c", ljrecord, ljstrafes, ljpre, ljmax, ljheight, ljsync, PERCENT);
 					menu.AddItem("1", szVr);
 				} else {
@@ -3878,8 +3842,8 @@ public SQL_ViewJumpStatsCallback(Handle owner, Handle hndl, const char[] error, 
 					menu.AddItem("1", szVr);
 				}
 			}
-			if (ljblockdist > 0 && !(CheckCommandAccess(client, "sm_resetplayerjumpstats", ADMFLAG_BAN))) {
-				if (ljstrafes > 9) {
+			if(ljblockdist > 0 && !(CheckCommandAccess(client, "sm_resetplayerjumpstats", ADMFLAG_BAN))) {
+				if(ljstrafes > 9) {
 					Format(szVr, 255, "BlockLJ:     %i|%.1f %i      %.2f   %.2f  %.1f    %i%c", ljblockdist, ljblockrecord, ljblockstrafes, ljblockpre, ljblockmax, ljblockheight, ljblocksync, PERCENT);
 					menu.AddItem("2", szVr);
 				} else {
@@ -3887,8 +3851,8 @@ public SQL_ViewJumpStatsCallback(Handle owner, Handle hndl, const char[] error, 
 					menu.AddItem("2", szVr);
 				}
 			}
-			if (bhoprecord > 0.0) {
-				if (bhopstrafes > 9) {
+			if(bhoprecord > 0.0) {
+				if(bhopstrafes > 9) {
 					Format(szVr, 255, "Bhop:         %.3f     %i      %.2f   %.2f  %.1f    %i%c", bhoprecord, bhopstrafes, bhoppre, bhopmax, bhopheight, bhopsync, PERCENT);
 					menu.AddItem("3", szVr);
 				} else {
@@ -3896,8 +3860,8 @@ public SQL_ViewJumpStatsCallback(Handle owner, Handle hndl, const char[] error, 
 					menu.AddItem("3", szVr);
 				}
 			}
-			if (dropbhoprecord > 0.0) {
-				if (dropbhopstrafes > 9) {
+			if(dropbhoprecord > 0.0) {
+				if(dropbhopstrafes > 9) {
 					Format(szVr, 255, "DropBhop: %.3f     %i      %.2f   %.2f  %.1f    %i%c", dropbhoprecord, dropbhopstrafes, dropbhoppre, dropbhopmax, dropbhopheight, dropbhopsync, PERCENT);
 					menu.AddItem("4", szVr);
 				} else {
@@ -3905,8 +3869,8 @@ public SQL_ViewJumpStatsCallback(Handle owner, Handle hndl, const char[] error, 
 					menu.AddItem("4", szVr);
 				}
 			}
-			if (multibhoprecord > 0.0) {
-				if (multibhopstrafes > 9) {
+			if(multibhoprecord > 0.0) {
+				if(multibhopstrafes > 9) {
 					Format(szVr, 255, "MultiBhop: %.3f     %i      %.2f   %.2f  %.1f    %i%c", multibhoprecord, multibhopstrafes, multibhoppre, multibhopmax, multibhopheight, multibhopsync, PERCENT);
 					menu.AddItem("5", szVr);
 				} else {
@@ -3914,8 +3878,8 @@ public SQL_ViewJumpStatsCallback(Handle owner, Handle hndl, const char[] error, 
 					menu.AddItem("5", szVr);
 				}
 			}
-			if (wjrecord > 0.0) {
-				if (wjstrafes > 9) {
+			if(wjrecord > 0.0) {
+				if(wjstrafes > 9) {
 					Format(szVr, 255, "WJ:            %.3f     %i      %.2f   %.2f  %.1f    %i%c", wjrecord, wjstrafes, wjpre, wjmax, wjheight, wjsync, PERCENT);
 					menu.AddItem("6", szVr);
 				} else {
@@ -3923,7 +3887,7 @@ public SQL_ViewJumpStatsCallback(Handle owner, Handle hndl, const char[] error, 
 					menu.AddItem("6", szVr);
 				}
 			}
-			if (CheckCommandAccess(client, "sm_resetplayerjumpstats", ADMFLAG_BAN)) {
+			if(CheckCommandAccess(client, "sm_resetplayerjumpstats", ADMFLAG_BAN)) {
 				ResetID[client] = szSteamId;
 				menu.AddItem("7", "Reset Player");
 				menu.AddItem("8", "Ban Player");
@@ -3940,7 +3904,7 @@ public SQL_ViewJumpStatsCallback(Handle owner, Handle hndl, const char[] error, 
 }
 public SQL_ViewBJumpStatsCallback(Handle owner, Handle hndl, const char[] error, any:data) {
 	int client = data;
-	if (SQL_HasResultSet(hndl) && SQL_FetchRow(hndl)) {
+	if(SQL_HasResultSet(hndl) && SQL_FetchRow(hndl)) {
 		char szSteamId[32];
 		char szName[17];
 		char szVr[255];
@@ -3955,12 +3919,12 @@ public SQL_ViewBJumpStatsCallback(Handle owner, Handle hndl, const char[] error,
 		int bljsync = SQL_FetchInt(hndl, 6);
 	//Height?
 		float bljheight = SQL_FetchFloat(hndl, 7);
-		if (bljrecord > 0.0) { // || ljblockdist > 0
+		if(bljrecord > 0.0) { // || ljblockdist > 0
 			Format(szVr, 255, "JS: %s (%s)\nBugged Stats\nType               Distance  Strafes Pre        Max      Height  Sync", szName, szSteamId);
 			Menu menu = new Menu(BJumpStatsMenuHandler);
 			menu.SetTitle(szVr);
-			if (bljrecord > 0.0) {
-				if (bljstrafes > 9) {
+			if(bljrecord > 0.0) {
+				if(bljstrafes > 9) {
 					Format(szVr, 255, "LJ:              %.3f     %i      %.2f   %.2f  %.1f    %i%c", bljrecord, bljstrafes, bljpre, bljmax, bljheight, bljsync, PERCENT);
 					menu.AddItem("1", szVr);
 				} else {
@@ -3968,7 +3932,7 @@ public SQL_ViewBJumpStatsCallback(Handle owner, Handle hndl, const char[] error,
 					menu.AddItem("1", szVr);
 				}
 			}
-			if (CheckCommandAccess(client, "sm_resetplayerjumpstats", ADMFLAG_BAN)) {
+			if(CheckCommandAccess(client, "sm_resetplayerjumpstats", ADMFLAG_BAN)) {
 				ResetID[client] = szSteamId;
 				menu.AddItem("7", "Reset Player");
 				menu.AddItem("8", "Ban Player");
@@ -3984,10 +3948,10 @@ public SQL_ViewBJumpStatsCallback(Handle owner, Handle hndl, const char[] error,
 		CPrintToChat(client, "[{lightgreen}JS{default}] No jump records found!");
 }
 public int JumpStatsMenuHandler(Menu menu, MenuAction action, int client, int info) {
-	if (action == MenuAction_Select) {
+	if(action == MenuAction_Select) {
 		char choice[32];
 		menu.GetItem(info, choice, sizeof(choice));
-		if (!(StrEqual(choice, "7")) && !(StrEqual(choice, "8")))
+		if(!(StrEqual(choice, "7")) && !(StrEqual(choice, "8")))
 			JumpTopMenu(client);
 		else if(StrEqual(choice, "7")) {
 			char szQuery[255];
@@ -4000,7 +3964,7 @@ public int JumpStatsMenuHandler(Menu menu, MenuAction action, int client, int in
 			SQL_TQuery(g_hDb, SQL_CheckCallback, szQuery, pack);
 			PrintToConsole(client, "jumpstats cleared (%s).", ResetID[client]);
 			for (new i = 1; i <= MaxClients; i++) {
-				if (IsValidClient(i)) {
+				if(IsValidClient(i)) {
 					char szSteamId2[32];
 					GetClientAuthId(i, AuthId_Steam2, szSteamId2, sizeof(szSteamId2));
 					if(StrEqual(szSteamId2,szsteamid)) {
@@ -4032,7 +3996,7 @@ public int JumpStatsMenuHandler(Menu menu, MenuAction action, int client, int in
 			SQL_TQuery(g_hDb, SQL_CheckCallback, szQuery, pack);
 			PrintToConsole(client, "jumpstats cleared (%s).", ResetID[client]);
 			for (new i = 1; i <= MaxClients; i++) {
-				if (IsValidClient(i)) {
+				if(IsValidClient(i)) {
 					char szSteamId2[32];
 					GetClientAuthId(i, AuthId_Steam2, szSteamId2, sizeof(szSteamId2));
 					if(StrEqual(szSteamId2,szsteamid)) {
@@ -4054,12 +4018,12 @@ public int JumpStatsMenuHandler(Menu menu, MenuAction action, int client, int in
 	}
 }
 public int BJumpStatsMenuHandler(Menu menu, MenuAction action, int client, int info) {
-	if (action == MenuAction_Select) {
+	if(action == MenuAction_Select) {
 		char choice[32];
 		menu.GetItem(info, choice, sizeof(choice));
-		if (!(StrEqual(choice, "7")) && !(StrEqual(choice, "8")))
+		if(!(StrEqual(choice, "7")) && !(StrEqual(choice, "8")))
 			db_BselectTopLj(client);
-		else if(StrEqual(choice, "7")){
+		else if(StrEqual(choice, "7")) {
 			char szQuery[255];
 			char szsteamid[128*2+1];
 			SQL_EscapeString(g_hBDb, ResetID[client], szsteamid, 128*2+1);
@@ -4070,7 +4034,7 @@ public int BJumpStatsMenuHandler(Menu menu, MenuAction action, int client, int i
 			SQL_TQuery(g_hBDb, SQL_CheckCallback, szQuery, pack);
 			PrintToConsole(client, "bugged jumpstats cleared (%s).", ResetID[client]);
 			for (new i = 1; i <= MaxClients; i++) {
-				if (IsValidClient(i)) {
+				if(IsValidClient(i)) {
 					char szSteamId2[32];
 					GetClientAuthId(i, AuthId_Steam2, szSteamId2, sizeof(szSteamId2));
 					if(StrEqual(szSteamId2,szsteamid)) {
@@ -4094,7 +4058,7 @@ public int BJumpStatsMenuHandler(Menu menu, MenuAction action, int client, int i
 			SQL_TQuery(g_hBDb, SQL_CheckCallback, szQuery, pack);
 			PrintToConsole(client, "bugged jumpstats cleared (%s).", ResetID[client]);
 			for (new i = 1; i <= MaxClients; i++) {
-				if (IsValidClient(i)) {
+				if(IsValidClient(i)) {
 					char szSteamId2[32];
 					GetClientAuthId(i, AuthId_Steam2, szSteamId2, sizeof(szSteamId2));
 					if(StrEqual(szSteamId2,szsteamid)) {
@@ -4121,10 +4085,10 @@ public SQL_LJRecordCallback(Handle owner, Handle hndl, const char[] error, any:d
 	int client = data;
 	if(SQL_HasResultSet(hndl) && SQL_FetchRow(hndl)) {
 		g_js_fPersonal_Lj_Record[client] = SQL_FetchFloat(hndl, 2);
-		if (g_js_fPersonal_Lj_Record[client] > -1.0) {
+		if(g_js_fPersonal_Lj_Record[client] > -1.0) {
 			char szSteamId[32];
 			char szQuery[512];
-			if (IsValidClient(client)) {
+			if(IsValidClient(client)) {
 				GetClientAuthId(client, AuthId_Steam2, szSteamId, sizeof(szSteamId));
 				Format(szQuery, 255, sql_selectPlayerRankLj, szSteamId);
 				SQL_TQuery(g_hDb, SQL_viewLjRecordCallback2, szQuery, client,DBPrio_Low);
@@ -4144,10 +4108,10 @@ public SQL_BLJRecordCallback(Handle owner, Handle hndl, const char[] error, any:
 	int client = data;
 	if(SQL_HasResultSet(hndl) && SQL_FetchRow(hndl)) {
 		g_js_fBuggedPersonal_Lj_Record[client] = SQL_FetchFloat(hndl, 2);
-		if (g_js_fBuggedPersonal_Lj_Record[client] > -1.0) {
+		if(g_js_fBuggedPersonal_Lj_Record[client] > -1.0) {
 			char szSteamId[32];
 			char szQuery[512];
-			if (IsValidClient(client)) {
+			if(IsValidClient(client)) {
 				GetClientAuthId(client, AuthId_Steam2, szSteamId, sizeof(szSteamId));
 				Format(szQuery, 255, sql_BselectPlayerRankLj, szSteamId);
 				SQL_TQuery(g_hBDb, SQL_viewBLjRecordCallback2, szQuery, client,DBPrio_Low);
@@ -4184,7 +4148,7 @@ public db_viewPersonalWeirdRecord(client, char szSteamId[32]) {
 	SQL_TQuery(g_hDb, SQL_ViewWeirdRecordCallback, szQuery, client,DBPrio_Low);
 }
 stock FakePrecacheSound(const char[] szPath) {
-	AddToStringTable( FindStringTable( "soundprecache" ), szPath );
+	AddToStringTable(FindStringTable("soundprecache"), szPath);
 }
 public db_viewPersonalMultiBhopRecord(client, char szSteamId[32]) {
 	char szQuery[512];
@@ -4196,10 +4160,10 @@ public SQL_LJBlockRecordCallback(Handle owner, Handle hndl, const char[] error, 
 	if(SQL_HasResultSet(hndl) && SQL_FetchRow(hndl)) {
 		g_js_Personal_LjBlock_Record[client] = SQL_FetchInt(hndl, 2);
 		g_js_fPersonal_LjBlockRecord_Dist[client] = SQL_FetchFloat(hndl, 3);
-		if (g_js_Personal_LjBlock_Record[client] > -1) {
+		if(g_js_Personal_LjBlock_Record[client] > -1) {
 			char szSteamId[32];
 			char szQuery[512];
-			if (IsValidClient(client)) {
+			if(IsValidClient(client)) {
 				GetClientAuthId(client, AuthId_Steam2, szSteamId, sizeof(szSteamId));
 				Format(szQuery, 255, sql_selectPlayerRankLjBlock, szSteamId);
 				SQL_TQuery(g_hDb, SQL_viewLjBlockRecordCallback2, szQuery, client,DBPrio_Low);
@@ -4241,10 +4205,10 @@ public SQL_ViewBhopRecordCallback(Handle owner, Handle hndl, const char[] error,
 	int client = data;
 	if(SQL_HasResultSet(hndl) && SQL_FetchRow(hndl)) {
 		g_js_fPersonal_Bhop_Record[client] = SQL_FetchFloat(hndl, 2);
-		if (g_js_fPersonal_Bhop_Record[client] > -1.0) {
+		if(g_js_fPersonal_Bhop_Record[client] > -1.0) {
 			char szSteamId[32];
 			char szQuery[512];
-			if (IsValidClient(client)) {
+			if(IsValidClient(client)) {
 				GetClientAuthId(client, AuthId_Steam2, szSteamId, sizeof(szSteamId));
 				Format(szQuery, 255, sql_selectPlayerRankBhop, szSteamId);
 				SQL_TQuery(g_hDb, SQL_viewBhopRecordCallback2, szQuery, client,DBPrio_Low);
@@ -4264,10 +4228,10 @@ public SQL_ViewDropBhopRecordCallback(Handle owner, Handle hndl, const char[] er
 	int client = data;
 	if(SQL_HasResultSet(hndl) && SQL_FetchRow(hndl)) {
 		g_js_fPersonal_DropBhop_Record[client] = SQL_FetchFloat(hndl, 2);
-		if (g_js_fPersonal_DropBhop_Record[client] > -1.0) {
+		if(g_js_fPersonal_DropBhop_Record[client] > -1.0) {
 			char szSteamId[32];
 			char szQuery[512];
-			if (IsValidClient(client)) {
+			if(IsValidClient(client)) {
 				GetClientAuthId(client, AuthId_Steam2, szSteamId, sizeof(szSteamId));
 				Format(szQuery, 255, sql_selectPlayerRankDropBhop, szSteamId);
 				SQL_TQuery(g_hDb, SQL_viewDropBhopRecordCallback2, szQuery, client,DBPrio_Low);
@@ -4297,10 +4261,10 @@ public SQL_ViewWeirdRecordCallback(Handle owner, Handle hndl, const char[] error
 	int client = data;
 	if(SQL_HasResultSet(hndl) && SQL_FetchRow(hndl)) {
 		g_js_fPersonal_Wj_Record[client] = SQL_FetchFloat(hndl, 2);
-		if (g_js_fPersonal_Wj_Record[client] > -1.0) {
+		if(g_js_fPersonal_Wj_Record[client] > -1.0) {
 			char szSteamId[32];
 			char szQuery[512];
-			if (IsValidClient(client)) {
+			if(IsValidClient(client)) {
 				GetClientAuthId(client, AuthId_Steam2, szSteamId, sizeof(szSteamId));
 				Format(szQuery, 255, sql_selectPlayerRankWJ, szSteamId);
 				SQL_TQuery(g_hDb, SQL_viewWeirdRecordCallback2, szQuery, client,DBPrio_Low);
@@ -4330,10 +4294,10 @@ public SQL_ViewMultiBhopRecordCallback(Handle owner, Handle hndl, const char[] e
 	int client = data;
 	if(SQL_HasResultSet(hndl) && SQL_FetchRow(hndl)) {
 		g_js_fPersonal_MultiBhop_Record[client] = SQL_FetchFloat(hndl, 2);
-		if (g_js_fPersonal_MultiBhop_Record[client] > -1.0) {
+		if(g_js_fPersonal_MultiBhop_Record[client] > -1.0) {
 			char szSteamId[32];
 			char szQuery[512];
-			if (IsValidClient(client)) {
+			if(IsValidClient(client)) {
 				GetClientAuthId(client, AuthId_Steam2, szSteamId, sizeof(szSteamId));
 				Format(szQuery, 255, sql_selectPlayerRankMultiBhop, szSteamId);
 				SQL_TQuery(g_hDb, SQL_viewMultiBhopRecordCallback2, szQuery, client,DBPrio_Low);
@@ -4381,7 +4345,7 @@ public Action Admin_ResetAllLjRecords(client, args) {
 	SQL_TQuery(g_hDb, SQL_CheckCallback, szQuery);
 	PrintToConsole(client, "no bug lj records reset.");
 	for (new i = 1; i <= MaxClients; i++) {
-		if (IsValidClient(i)) {
+		if(IsValidClient(i)) {
 			g_js_LjRank[i] = 99999999;
 			g_js_fPersonal_Lj_Record[i] = -1.0;
 		}
@@ -4394,7 +4358,7 @@ public Action Admin_BResetAllLjRecords(client, args) {
 	SQL_TQuery(g_hBDb, SQL_CheckCallback, szQuery);
 	PrintToConsole(client, "bugged lj records reset.");
 	for (new i = 1; i <= MaxClients; i++) {
-		if (IsValidClient(i)) {
+		if(IsValidClient(i)) {
 			g_js_BLjRank[i] = 99999999;
 			g_js_fBuggedPersonal_Lj_Record[i] = -1.0;
 		}
@@ -4407,7 +4371,7 @@ public Action Admin_ResetAllWjRecords(client, args) {
 	SQL_TQuery(g_hDb, SQL_CheckCallback, szQuery);
 	PrintToConsole(client, "no bug wj records reset.");
 	for (new i = 1; i <= MaxClients; i++) {
-		if (IsValidClient(i)) {
+		if(IsValidClient(i)) {
 			g_js_WjRank[i] = 99999999;
 			g_js_fPersonal_Wj_Record[i] = -1.0;
 		}
@@ -4420,7 +4384,7 @@ public Action Admin_BResetAllWjRecords(client, args) {
 	SQL_TQuery(g_hBDb, SQL_CheckCallback, szQuery);
 	PrintToConsole(client, "bugged wj records reset.");
 	for (new i = 1; i <= MaxClients; i++) {
-		if (IsValidClient(i)) {
+		if(IsValidClient(i)) {
 			g_js_BWjRank[i] = 99999999;
 			g_js_fBuggedPersonal_Wj_Record[i] = -1.0;
 		}
@@ -4433,7 +4397,7 @@ public Action Admin_ResetAllBhopRecords(client, args) {
 	SQL_TQuery(g_hDb, SQL_CheckCallback, szQuery);
 	PrintToConsole(client, "no bug bhop records reset.");
 	for (new i = 1; i <= MaxClients; i++) {
-		if (IsValidClient(i)) {
+		if(IsValidClient(i)) {
 			g_js_BhopRank[i] = 99999999;
 			g_js_fPersonal_Bhop_Record[i] = -1.0;
 		}
@@ -4446,7 +4410,7 @@ public Action Admin_BResetAllBhopRecords(client, args) {
 	SQL_TQuery(g_hBDb, SQL_CheckCallback, szQuery);
 	PrintToConsole(client, "bugged bhop records reset.");
 	for (new i = 1; i <= MaxClients; i++) {
-		if (IsValidClient(i)) {
+		if(IsValidClient(i)) {
 			g_js_BBhopRank[i] = 99999999;
 			g_js_fBuggedPersonal_Bhop_Record[i] = -1.0;
 		}
@@ -4459,7 +4423,7 @@ public Action Admin_ResetAllDropBhopRecords(client, args) {
 	SQL_TQuery(g_hDb, SQL_CheckCallback, szQuery);
 	PrintToConsole(client, "no bug dropbhop records reset.");
 	for (new i = 1; i <= MaxClients; i++) {
-		if (IsValidClient(i)) {
+		if(IsValidClient(i)) {
 			g_js_DropBhopRank[i] = 99999999;
 			g_js_fPersonal_DropBhop_Record[i] = -1.0;
 		}
@@ -4472,7 +4436,7 @@ public Action Admin_BResetAllDropBhopRecords(client, args) {
 	SQL_TQuery(g_hBDb, SQL_CheckCallback, szQuery);
 	PrintToConsole(client, "bugged dropbhop records reset.");
 	for (new i = 1; i <= MaxClients; i++) {
-		if (IsValidClient(i)) {
+		if(IsValidClient(i)) {
 			g_js_BDropBhopRank[i] = 99999999;
 			g_js_fBuggedPersonal_DropBhop_Record[i] = -1.0;
 		}
@@ -4485,7 +4449,7 @@ public Action Admin_ResetAllMultiBhopRecords(client, args) {
 	SQL_TQuery(g_hDb, SQL_CheckCallback, szQuery);
 	PrintToConsole(client, "no bug multibhop records reset.");
 	for (new i = 1; i <= MaxClients; i++) {
-		if (IsValidClient(i)) {
+		if(IsValidClient(i)) {
 			g_js_MultiBhopRank[i] = 99999999;
 			g_js_fPersonal_MultiBhop_Record[i] = -1.0;
 		}
@@ -4498,7 +4462,7 @@ public Action Admin_BResetAllMultiBhopRecords(client, args) {
 	SQL_TQuery(g_hBDb, SQL_CheckCallback, szQuery);
 	PrintToConsole(client, "bugged multibhop records reset.");
 	for (new i = 1; i <= MaxClients; i++) {
-		if (IsValidClient(i)) {
+		if(IsValidClient(i)) {
 			g_js_BMultiBhopRank[i] = 99999999;
 			g_js_fBuggedPersonal_MultiBhop_Record[i] = -1.0;
 		}
@@ -4511,7 +4475,7 @@ public Action Admin_ResetAllLjBlockRecords(client, args) {
 	SQL_TQuery(g_hDb, SQL_CheckCallback, szQuery);
 	PrintToConsole(client, "no bug ljblock records reset.");
 	for (new i = 1; i <= MaxClients; i++) {
-		if (IsValidClient(i)) {
+		if(IsValidClient(i)) {
 			g_js_MultiBhopRank[i] = 99999999;
 			g_js_fPersonal_MultiBhop_Record[i] = -1.0;
 		}
@@ -4524,7 +4488,7 @@ public Action Admin_BResetAllLjBlockRecords(client, args) {
 	SQL_TQuery(g_hBDb, SQL_CheckCallback, szQuery);
 	PrintToConsole(client, "bugged ljblock records reset.");
 	for (new i = 1; i <= MaxClients; i++) {
-		if (IsValidClient(i)) {
+		if(IsValidClient(i)) {
 			g_js_BMultiBhopRank[i] = 99999999;
 			g_js_fBuggedPersonal_MultiBhop_Record[i] = -1.0;
 		}
@@ -4542,8 +4506,8 @@ public Action Admin_ResetLjRecords(client, args) {
 		Format(szSteamID, 128, "");
 		for (new i = 1; i < 6; i++) {
 			GetCmdArg(i, szArg, 128);
-			if (!StrEqual(szArg, "", false))
-				Format(szSteamID, 128, "%s%s",  szSteamID, szArg);
+			if(!StrEqual(szArg, "", false))
+				Format(szSteamID, 128, "%s%s", szSteamID, szArg);
 		}
 		db_resetPlayerLjRecord(client, szSteamID);
 	}
@@ -4560,8 +4524,8 @@ public Action Admin_BResetLjRecords(client, args) {
 		Format(szSteamID, 128, "");
 		for (new i = 1; i < 6; i++) {
 			GetCmdArg(i, szArg, 128);
-			if (!StrEqual(szArg, "", false))
-				Format(szSteamID, 128, "%s%s",  szSteamID, szArg);
+			if(!StrEqual(szArg, "", false))
+				Format(szSteamID, 128, "%s%s", szSteamID, szArg);
 		}
 		db_BresetPlayerLjRecord(client, szSteamID);
 	}
@@ -4578,8 +4542,8 @@ public Action Admin_ResetLjBlockRecords(client, args) {
 		Format(szSteamID, 128, "");
 		for (new i = 1; i < 6; i++) {
 			GetCmdArg(i, szArg, 128);
-			if (!StrEqual(szArg, "", false))
-				Format(szSteamID, 128, "%s%s",  szSteamID, szArg);
+			if(!StrEqual(szArg, "", false))
+				Format(szSteamID, 128, "%s%s", szSteamID, szArg);
 		}
 		db_resetPlayerLjBlockRecord(client, szSteamID);
 	}
@@ -4596,8 +4560,8 @@ public Action Admin_ResetWjRecords(client, args) {
 		Format(szSteamID, 128, "");
 		for (new i = 1; i < 6; i++) {
 			GetCmdArg(i, szArg, 128);
-			if (!StrEqual(szArg, "", false))
-				Format(szSteamID, 128, "%s%s",  szSteamID, szArg);
+			if(!StrEqual(szArg, "", false))
+				Format(szSteamID, 128, "%s%s", szSteamID, szArg);
 		}
 		db_resetPlayerWJRecord(client, szSteamID);
 	}
@@ -4614,8 +4578,8 @@ public Action Admin_ResetPlayerJumpstats(client, args) {
 		Format(szSteamID, 128, "");
 		for (new i = 1; i < 6; i++) {
 			GetCmdArg(i, szArg, 128);
-			if (!StrEqual(szArg, "", false))
-				Format(szSteamID, 128, "%s%s",  szSteamID, szArg);
+			if(!StrEqual(szArg, "", false))
+				Format(szSteamID, 128, "%s%s", szSteamID, szArg);
 		}
 		db_resetPlayerJumpstats(client, szSteamID);
 	}
@@ -4632,8 +4596,8 @@ public Action Admin_ResetDropBhopRecords(client, args) {
 		Format(szSteamID, 128, "");
 		for (new i = 1; i < 6; i++) {
 			GetCmdArg(i, szArg, 128);
-			if (!StrEqual(szArg, "", false))
-				Format(szSteamID, 128, "%s%s",  szSteamID, szArg);
+			if(!StrEqual(szArg, "", false))
+				Format(szSteamID, 128, "%s%s", szSteamID, szArg);
 		}
 		db_resetPlayerDropBhopRecord(client, szSteamID);
 	}
@@ -4650,8 +4614,8 @@ public Action Admin_ResetBhopRecords(client, args) {
 		Format(szSteamID, 128, "");
 		for (new i = 1; i < 6; i++) {
 			GetCmdArg(i, szArg, 128);
-			if (!StrEqual(szArg, "", false))
-				Format(szSteamID, 128, "%s%s",  szSteamID, szArg);
+			if(!StrEqual(szArg, "", false))
+				Format(szSteamID, 128, "%s%s", szSteamID, szArg);
 		}
 		db_resetPlayerBhopRecord(client, szSteamID);
 	}
@@ -4668,8 +4632,8 @@ public Action Admin_ResetMultiBhopRecords(client, args) {
 		Format(szSteamID, 128, "");
 		for (new i = 1; i < 6; i++) {
 			GetCmdArg(i, szArg, 128);
-			if (!StrEqual(szArg, "", false))
-				Format(szSteamID, 128, "%s%s",  szSteamID, szArg);
+			if(!StrEqual(szArg, "", false))
+				Format(szSteamID, 128, "%s%s", szSteamID, szArg);
 		}
 		db_resetPlayerMultiBhopRecord(client, szSteamID);
 	}
@@ -4686,7 +4650,7 @@ public db_resetPlayerBhopRecord(client, char steamid[128]) {
 	SQL_TQuery(g_hDb, SQL_CheckCallback, szQuery, pack);
 	PrintToConsole(client, "nobug bhop record cleared (%s).", szsteamid);
 	for (new i = 1; i <= MaxClients; i++) {
-		if (IsValidClient(i)) {
+		if(IsValidClient(i)) {
 			char szSteamId2[32];
 			GetClientAuthId(i, AuthId_Steam2, szSteamId2, sizeof(szSteamId2));
 			if(StrEqual(szSteamId2,szsteamid)) {
@@ -4707,7 +4671,7 @@ public db_resetPlayerDropBhopRecord(client, char steamid[128]) {
 	SQL_TQuery(g_hDb, SQL_CheckCallback, szQuery, pack);
 	PrintToConsole(client, "no bug dropbhop record cleared (%s).", szsteamid);
 	for (new i = 1; i <= MaxClients; i++) {
-		if (IsValidClient(i)) {
+		if(IsValidClient(i)) {
 			char szSteamId2[32];
 			GetClientAuthId(i, AuthId_Steam2, szSteamId2, sizeof(szSteamId2));
 			if(StrEqual(szSteamId2,szsteamid)) {
@@ -4728,7 +4692,7 @@ public db_resetPlayerWJRecord(client, char steamid[128]) {
 	SQL_TQuery(g_hDb, SQL_CheckCallback, szQuery, pack);
 	PrintToConsole(client, "no bug wj record cleared (%s).", szsteamid);
 	for (new i = 1; i <= MaxClients; i++) {
-		if (IsValidClient(i)) {
+		if(IsValidClient(i)) {
 			char szSteamId2[32];
 			GetClientAuthId(i, AuthId_Steam2, szSteamId2, sizeof(szSteamId2));
 			if(StrEqual(szSteamId2,szsteamid)) {
@@ -4749,7 +4713,7 @@ public db_resetPlayerJumpstats(client, char steamid[128]) {
 	SQL_TQuery(g_hDb, SQL_CheckCallback, szQuery, pack);
 	PrintToConsole(client, "no bug jumpstats cleared (%s).", szsteamid);
 	for (new i = 1; i <= MaxClients; i++) {
-		if (IsValidClient(i)) {
+		if(IsValidClient(i)) {
 			char szSteamId2[32];
 			GetClientAuthId(i, AuthId_Steam2, szSteamId2, sizeof(szSteamId2));
 			if(StrEqual(szSteamId2,szsteamid)) {
@@ -4778,7 +4742,7 @@ public db_resetPlayerMultiBhopRecord(client, char steamid[128]) {
 	SQL_TQuery(g_hDb, SQL_CheckCallback, szQuery, pack);
 	PrintToConsole(client, "no bug multibhop record cleared (%s).", szsteamid);
 	for (new i = 1; i <= MaxClients; i++) {
-		if (IsValidClient(i)) {
+		if(IsValidClient(i)) {
 			char szSteamId2[32];
 			GetClientAuthId(i, AuthId_Steam2, szSteamId2, sizeof(szSteamId2));
 			if(StrEqual(szSteamId2,szsteamid)) {
@@ -4799,7 +4763,7 @@ public db_resetPlayerLjRecord(client, char steamid[128]) {
 	SQL_TQuery(g_hDb, SQL_CheckCallback, szQuery, pack);
 	PrintToConsole(client, "no bug lj record cleared (%s).", szsteamid);
 	for (new i = 1; i <= MaxClients; i++) {
-		if (IsValidClient(i)) {
+		if(IsValidClient(i)) {
 			char szSteamId2[32];
 			GetClientAuthId(i, AuthId_Steam2, szSteamId2, sizeof(szSteamId2));
 			if(StrEqual(szSteamId2,szsteamid)) {
@@ -4820,7 +4784,7 @@ public db_BresetPlayerLjRecord(client, char steamid[128]) {
 	SQL_TQuery(g_hBDb, SQL_CheckCallback, szQuery, pack);
 	PrintToConsole(client, "bugged lj record cleared (%s).", szsteamid);
 	for (new i = 1; i <= MaxClients; i++) {
-		if (IsValidClient(i)) {
+		if(IsValidClient(i)) {
 			char szSteamId2[32];
 			GetClientAuthId(i, AuthId_Steam2, szSteamId2, sizeof(szSteamId2));
 			if(StrEqual(szSteamId2,szsteamid)) {
@@ -4841,7 +4805,7 @@ public db_resetPlayerLjBlockRecord(client, char steamid[128]) {
 	SQL_TQuery(g_hDb, SQL_CheckCallback, szQuery, pack);
 	PrintToConsole(client, "no bug ljblock record cleared (%s).", szsteamid);
 	for (new i = 1; i <= MaxClients; i++) {
-		if (IsValidClient(i)) {
+		if(IsValidClient(i)) {
 			char szSteamId2[32];
 			GetClientAuthId(i, AuthId_Steam2, szSteamId2, sizeof(szSteamId2));
 			if(StrEqual(szSteamId2,szsteamid)) {
@@ -4857,7 +4821,7 @@ public db_dropPlayerJump(client) {
 	SQL_TQuery(g_hDb, SQL_CheckCallback, szQuery);
 	PrintToConsole(client, "no bug jumpstats records reset.");
 	for (new i = 1; i <= MaxClients; i++) {
-		if (IsValidClient(i)) {
+		if(IsValidClient(i)) {
 			g_js_LjRank[i] = 99999999;
 			g_js_fPersonal_Lj_Record[i] = -1.0;
 			g_js_LjBlockRank[i] = 99999999;
@@ -4876,7 +4840,7 @@ public db_dropPlayerJump(client) {
 //Distbug Things
 public Action Command_Distbug(int client, int args) {
 	g_db_iDistbug[client] = g_db_iDistbug[client] == 1 ? 0 : 1;
-	if (g_db_iStrafeStats[client] == 1)
+	if(g_db_iStrafeStats[client] == 1)
 		CPrintToChat(client, "%s Distbug has been %s", PREFIX, g_db_iDistbug[client] ? "enabled. Type !strafestats to turn strafestats off." : "disabled.");
 	else
 		CPrintToChat(client, "%s Distbug has been %s", PREFIX, g_db_iDistbug[client] ? "enabled. Type !strafestats to turn strafestats on." : "disabled.");
@@ -4886,7 +4850,7 @@ public Action Command_Distbug(int client, int args) {
 	return Plugin_Handled;
 }
 public Action Command_StrafeStats(int client, int args) {
-	if (g_db_iDistbug[client] == 1) {
+	if(g_db_iDistbug[client] == 1) {
 		g_db_iStrafeStats[client] = g_db_iStrafeStats[client] == 1 ? 0 : 1;
 		CPrintToChat(client, "%s Strafe stats have been %s.", PREFIX, g_db_iStrafeStats[client] ? "turned on" : "turned off");
 		char sCookie[128];
@@ -4911,7 +4875,7 @@ void ResetStatStrafeVars(int client) {
 }
 // set vars
 void SetFailStatVars(int client) {
-	if (!IsFailstat(g_db_fPosition[client][2], g_db_fJumpPosition[client][2], -g_db_fVelocity[client][2] / g_db_fTickRate + 1.0))
+	if(!IsFailstat(g_db_fPosition[client][2], g_db_fJumpPosition[client][2], -g_db_fVelocity[client][2] / g_db_fTickRate + 1.0))
 		return;
 	g_db_fFailStatStrafeGain[client] = g_db_fStatStrafeGain[client];
 	g_db_fFailStatStrafeLoss[client] = g_db_fStatStrafeLoss[client];
@@ -4932,19 +4896,19 @@ void SetFailStatVars(int client) {
 void OnPlayerInAir(int client, int &buttons, float vel[3]) {
 	g_db_iFramesOnGround[client] = 0;
 	g_db_iFramesInAir[client]++;
-	if (!g_db_bValidJump[client])
+	if(!g_db_bValidJump[client])
 		return;
-	if (IsFailstat(g_db_fPosition[client][2], g_db_fJumpPosition[client][2], -g_db_fVelocity[client][2] / g_db_fTickRate + 1.0)) {
+	if(IsFailstat(g_db_fPosition[client][2], g_db_fJumpPosition[client][2], -g_db_fVelocity[client][2] / g_db_fTickRate + 1.0)) {
 		float angles[3];
 		GetClientAbsAngles(client, angles);
 	}
 	float speed = GetVectorHorLength(g_db_fVelocity[client]);
 	float lastspeed = GetVectorHorLength(g_db_fLastVelocity[client]);
-	if (IsOverlapping(buttons))
+	if(IsOverlapping(buttons))
 		g_db_iFramesOverlapped[client]++;
-	if (IsDeadAirtime(buttons))
+	if(IsDeadAirtime(buttons))
 		g_db_iDeadAirtime[client]++;
-	if (IsStrafeSynced(speed, lastspeed))
+	if(IsStrafeSynced(speed, lastspeed))
 		g_db_iStatSync[client]++;
 	CheckMaxHeight(client);
 	CheckStrafeStats(client, buttons, vel, speed, lastspeed);
@@ -4955,10 +4919,10 @@ void OnPlayerInAir(int client, int &buttons, float vel[3]) {
 	g_db_fLastVelInAir[client] = vel;
 }
 void OnJumpLand(int client) {
-	if(GetClientTeam(client) == CS_TEAM_CT && g_iCTDistbugStats == 0)
+	if(GetClientTeam(client) == CS_TEAM_CT && g_iCTDistbugStats == 1)
 		return;
 	float fOffset = GetOffset(client, false);
-	if (fOffset > EPSILON)
+	if(fOffset > EPSILON)
 		return;
 	float fBlockDist = GetBlockDist(client, g_db_fPosition[client], g_db_fJumpPosition[client]);
 	// jump start strings
@@ -4968,7 +4932,7 @@ void OnJumpLand(int client) {
 	FormatWRelease(client, szWRelease, sizeof(szWRelease));
 	char szEdge[32];
 	FormatEdge(client, szEdge, sizeof(szEdge));
-	if (fOffset < -EPSILON) {
+	if(fOffset < -EPSILON) {
 		float failDist = CalcFailDistance(g_db_fJumpPosition[client], g_db_fFailPos[client], g_db_fFailVelocity[client]);
 		char szFailDist[32];
 		FormatFailDist(szFailDist, sizeof(szFailDist), failDist);
@@ -4986,7 +4950,7 @@ void OnJumpLand(int client) {
 	}
 	else {
 		float distance = CalcJumpDistance(client);
-		if (!IsFloatInRange(distance, g_db_fMinJumpDistance, g_db_fMaxJumpDistance))
+		if(!IsFloatInRange(distance, g_db_fMinJumpDistance, g_db_fMaxJumpDistance))
 			return;
 		char szDist[32];
 		FormatDist(szDist, sizeof(szDist), distance);
@@ -5010,13 +4974,13 @@ float GetOffset(int client, bool optimised = true) {
 	float jumpground[3];
 	float landground[3];
 	TraceGround(client, g_db_fJumpPosition[client], jumpground);
-	if (optimised)
+	if(optimised)
 		TraceGround(client, g_db_fPosition[client], landground);
 	else {
 		float tempPos[3];
 		float tickGravity;
 		tempPos = g_db_fPosition[client];
-		if (!IsFloatInRange(g_db_fPosition[client][2] - g_db_fJumpPosition[client][2], -EPSILON, EPSILON)) {
+		if(!IsFloatInRange(g_db_fPosition[client][2] - g_db_fJumpPosition[client][2], -EPSILON, EPSILON)) {
 			tickGravity = g_db_fTickGravity;
 			tempPos = g_db_fLastPosInAir[client];
 		}
@@ -5040,7 +5004,7 @@ float GetBlockDist(int client, float position[3], float jumpPosition[3]) {
 	pos2[blockDir] += (position[blockDir] - jumpPosition[blockDir]) / 2.0;
 	g_db_bBlock[client] = TraceBlock(pos2, position, endEdge);
 	blockdist = FloatAbs(endEdge[blockDir] - startEdge[blockDir]) + 32.0625;
-	if (startEdge[blockDir] - pos2[blockDir] != 0.0)
+	if(startEdge[blockDir] - pos2[blockDir] != 0.0)
 		g_db_fJEdge[client] = FloatAbs(jumpPosition[blockDir] - RoundFloat(startEdge[blockDir]));
 	else
 		g_db_fJEdge[client] = -1.0;
@@ -5064,16 +5028,16 @@ float CalcFailDistance(float jumpPosition[3], float position[3], float velocity[
 float CalcJumpDistance(int client) {
 	float realLandPos[3];
 	// is jump bugged?
-	if (!IsOffset(g_db_fPosition[client][2], g_db_fJumpPosition[client][2], EPSILON)) {
-		if (TraceLandPos(client, g_db_fLastPosInAir[client], g_db_fLastVelocity[client], realLandPos, g_db_fTickGravity))
+	if(!IsOffset(g_db_fPosition[client][2], g_db_fJumpPosition[client][2], EPSILON)) {
+		if(TraceLandPos(client, g_db_fLastPosInAir[client], g_db_fLastVelocity[client], realLandPos, g_db_fTickGravity))
 			return GetVectorHorDistance(g_db_fJumpPosition[client], realLandPos) + 32.0;
 	}
-	if (TraceLandPos(client, g_db_fPosition[client], g_db_fLastVelocity[client], realLandPos, 0.0))
+	if(TraceLandPos(client, g_db_fPosition[client], g_db_fLastVelocity[client], realLandPos, 0.0))
 		return GetVectorHorDistance(g_db_fJumpPosition[client], realLandPos) + 32.0;
 	return -1.0;
 }
 void PrintFailStat(int client, char[] szDist, char[] szEdge, char[] szBlockdist, char[] szJumpHeight, char[] szSync, char[] szAirtime, char[] szWRelease, char[] szOverlap, char[] szDeadAirtime) {
-	if(g_db_iDistbug[client] == 1 ) {
+	if(g_db_iDistbug[client] == 1) {
 		char chatOutput[256];
 		FormatEx(chatOutput, sizeof(chatOutput), "%s{grey} %s %s%s[ %s | %s | %s | %s | %s | %s ]",
 				PREFIX, szDist, szEdge, szBlockdist, szJumpHeight, szSync, szAirtime, szWRelease, szOverlap, szDeadAirtime);
@@ -5083,7 +5047,7 @@ void PrintFailStat(int client, char[] szDist, char[] szEdge, char[] szBlockdist,
 		CRemoveTags(conOutput, sizeof(conOutput));
 		PrintToConsole(client, conOutput);
 		EchoToSpectators(client, conOutput, chatOutput);
-		if (g_db_iStrafeStats[client] == 1) {
+		if(g_db_iStrafeStats[client] == 1) {
 			PrintStrafeStats(client, g_db_fFailStatStrafeGain[client],
 				g_db_fFailStatStrafeLoss[client], g_db_fFailStatStrafeMax[client],
 				g_db_fFailStatStrafeSync[client], g_db_fFailStatStrafeAirtime[client],
@@ -5103,7 +5067,7 @@ void PrintJumpstat(int client, char[] szDist, char[] szEdge, char[] szBlockdist,
 		CRemoveTags(conOutput, sizeof(conOutput));
 		PrintToConsole(client, conOutput);
 		EchoToSpectators(client, conOutput, chatOutput);
-		if (g_db_iStrafeStats[client] == 1) {
+		if(g_db_iStrafeStats[client] == 1) {
 			PrintStrafeStats(client,
 				g_db_fStatStrafeGain[client],
 				g_db_fStatStrafeLoss[client],
@@ -5148,21 +5112,21 @@ void PrintStrafeStats(int client, float gain[MAXSTRAFES], float loss[MAXSTRAFES]
 	EchoToSpectators(client, strafeStats, NULL_STRING);
 }
 void EchoToSpectators(int client, const char[] conOutput, const char[] chatOutput) {
-	if (IsNullString(conOutput) && IsNullString(chatOutput))
+	if(IsNullString(conOutput) && IsNullString(chatOutput))
 		return;
 	for (int i = 1; i <= MaxClients; i++) {
-		if (i == client || !IsValidClient(i) || !IsClientObserver(i))
+		if(i == client || !IsValidClient(i) || !IsClientObserver(i))
 			continue;
 		// Check if spectating client
-		if (GetEntPropEnt(i, Prop_Send, "m_hObserverTarget") != client)
+		if(GetEntPropEnt(i, Prop_Send, "m_hObserverTarget") != client)
 			continue;
 		int specMode = GetEntProp(i, Prop_Send, "m_iObserverMode");
 		// 4 = 1st person, 5 = 3rd person
-		if (specMode != 4 && specMode != 5)
+		if(specMode != 4 && specMode != 5)
 			continue;
-		if (!IsNullString(conOutput))
+		if(!IsNullString(conOutput))
 			PrintToConsole(i, conOutput);
-		if (!IsNullString(chatOutput))
+		if(!IsNullString(chatOutput))
 			CPrintToChat(i, "%s", chatOutput);
 	}
 }
@@ -5188,21 +5152,21 @@ void FormatWRelease(int client, char[] buffer, int maxlen) {
 	// calculate w release
 	int iWRelease = g_db_iWReleaseFrame[client] - g_db_iJumpFrame[client];
 	// format w release
-	if (iWRelease == 0)
+	if(iWRelease == 0)
 		FormatEx(buffer, maxlen, "-W: {green}✓{grey}");
-	else if (abs(iWRelease) > 16)
+	else if(abs(iWRelease) > 16)
 		FormatEx(buffer, maxlen, "-W: {grey}No{grey}");
-	else if (iWRelease > 0)
+	else if(iWRelease > 0)
 		FormatEx(buffer, maxlen, "-W: {darkred}+%i{grey}", iWRelease);
 	else
 		FormatEx(buffer, maxlen, "-W: \x0A%i{grey}", iWRelease);
 }
 void FormatBlockDistance(char[] buffer, int maxlen, float fBlockDist) {
-	if (IsFloatInRange(fBlockDist, g_db_fMinJumpDistance, g_db_fMaxJumpDistance))
+	if(IsFloatInRange(fBlockDist, g_db_fMinJumpDistance, g_db_fMaxJumpDistance))
 		FormatEx(buffer, maxlen, "| Block: {default}%i{grey} ", RoundFloat(fBlockDist));
 }
 void FormatEdge(int client, char[] buffer, int maxlen) {
-	if (g_db_fJEdge[client] >= 0.0 && g_db_fJEdge[client] < MAXEDGE)
+	if(g_db_fJEdge[client] >= 0.0 && g_db_fJEdge[client] < MAXEDGE)
 		FormatEx(buffer, maxlen, "| Edge: {default}%.3f{grey} ", g_db_fJEdge[client]);
 }
 void FormatOverlap(char[] buffer, int maxlen, int overlap) {
@@ -5214,29 +5178,29 @@ void FormatDeadAirtime(char[] buffer, maxlen, int deadAirtime) {
 void CheckMaxHeight(int client) {
 	float fHeightOrigin[3];
 	fHeightOrigin = g_db_fPosition[client];
-	if (GetEntityFlags(client) & FL_DUCKING)
+	if(GetEntityFlags(client) & FL_DUCKING)
 		// make height not affected by ducking
 		fHeightOrigin[2] -= 9.0
-	if (fHeightOrigin[2] > g_db_fMaxHeight[client])
+	if(fHeightOrigin[2] > g_db_fMaxHeight[client])
 		g_db_fMaxHeight[client] = fHeightOrigin[2];
 }
 void IncStrafeCount(int client, float vel[3]) {
-	if ((vel[1] > 0.0 && g_db_fLastVelInAir[client][1] <= 0.0) || (vel[1] < 0.0 && g_db_fLastVelInAir[client][1] >= 0.0))
+	if((vel[1] > 0.0 && g_db_fLastVelInAir[client][1] <= 0.0) || (vel[1] < 0.0 && g_db_fLastVelInAir[client][1] >= 0.0))
 		g_db_iStatStrafeCount[client]++;
 }
 void CheckStrafeStats(int client, int &buttons, float vel[3], float speed, float lastspeed) {
 	IncStrafeCount(client, vel);
-	if (g_db_iStatStrafeCount[client] >= MAXSTRAFES)
+	if(g_db_iStatStrafeCount[client] >= MAXSTRAFES)
 		return;
 	int strafe = g_db_iStatStrafeCount[client];
 	g_db_fStatStrafeAirtime[client][strafe] += 1.0;
-	if (CheckMaxSpeed(speed, lastspeed))
+	if(CheckMaxSpeed(speed, lastspeed))
 		g_db_fStatStrafeMax[client][strafe] = speed;
-	if (IsOverlapping(buttons))
+	if(IsOverlapping(buttons))
 		g_db_iStatStrafeOverlap[client][strafe]++;
-	else if (IsDeadAirtime(buttons))
+	else if(IsDeadAirtime(buttons))
 		g_db_iStatStrafeDead[client][strafe]++;
-	if (IsStrafeSynced(speed, lastspeed)) {
+	if(IsStrafeSynced(speed, lastspeed)) {
 		g_db_fStatStrafeGain[client][strafe] += speed - lastspeed;
 		g_db_fStatStrafeSync[client][strafe] += 1.0;
 	}
@@ -5244,7 +5208,7 @@ void CheckStrafeStats(int client, int &buttons, float vel[3], float speed, float
 		g_db_fStatStrafeLoss[client][strafe] += lastspeed - speed;
 }
 stock void lineIntersection(float planePoint[3], float planeNormal[3], float linePoint[3], float lineDirection[3], float result[3]) {
-	if (GetVectorDotProduct(planeNormal, lineDirection) == 0)
+	if(GetVectorDotProduct(planeNormal, lineDirection) == 0)
 		return;
 	float t = (GetVectorDotProduct(planeNormal, planePoint)
 			 - GetVectorDotProduct(planeNormal, linePoint))
@@ -5261,7 +5225,7 @@ stock bool TraceLandPos(int client, float pos[3], float velocity[3], float resul
 	GetClientMins(client, mins);
 	GetClientMaxs(client, maxs);
 	Handle trace = TR_TraceHullFilterEx(pos, pos2, mins, maxs, MASK_PLAYERSOLID, TraceEntityFilterPlayer);
-	if (!TR_DidHit(trace)) {
+	if(!TR_DidHit(trace)) {
 		CloseHandle(trace);
 		return false;
 	}
@@ -5284,13 +5248,13 @@ stock void TraceGround(int client, float pos[3], float result[3]) {
 	startpos[2]++;
 	endpos[2]--;
 	Handle trace = TR_TraceHullFilterEx(startpos, endpos, mins, maxs, MASK_PLAYERSOLID, TraceEntityFilterPlayer);
-	if (TR_DidHit(trace))
+	if(TR_DidHit(trace))
 		TR_GetEndPosition(result, trace);
 	CloseHandle(trace);
 }
 stock bool TraceBlock(float pos2[3], float position[3], float result[3]) {
-	float mins[3] =  { -16.0, -16.0, -1.0 };
-	float maxs[3] =  { 16.0, 16.0, 0.0 };
+	float mins[3] = { -16.0, -16.0, -1.0 };
+	float maxs[3] = { 16.0, 16.0, 0.0 };
 	Handle trace = TR_TraceHullFilterEx(pos2, position, mins, maxs, MASK_PLAYERSOLID, TraceEntityFilterPlayer);
 	if(!TR_DidHit(trace)) {
 		CloseHandle(trace);
@@ -5319,7 +5283,7 @@ stock float GetVectorHorDistance(float x[3], float y[3]) {
 	return GetVectorDistance(x2, y2);
 }
 stock int abs(x) {
-   return x >= 0 ? x : -x;
+	return x >= 0 ? x : -x;
 }
 stock bool IsOverlapping(int &buttons) {
 	return buttons & IN_MOVERIGHT && buttons & IN_MOVELEFT
