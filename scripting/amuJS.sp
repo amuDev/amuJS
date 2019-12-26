@@ -14,7 +14,7 @@
 #include <clientprefs>
 #undef REQUIRE_PLUGIN
 //BEST VERSION
-#define VERSION "4.0.3"
+#define VERSION "4.1.0"
 //reset stats flag
 #define ADMIN_LEVEL				ADMFLAG_BAN
 //Colors
@@ -1042,7 +1042,7 @@ public Action OnPlayerRunCmd(client, &buttons, &impulse, float vel[3], float ang
 		g_db_iWReleaseFrame[client] = GetGameTickCount();
 	if(GetEntityFlags(client) & FL_ONGROUND) {
 		g_db_iFramesOnGround[client]++;
-		if(g_db_iFramesOnGround[client] > 1 && buttons & IN_JUMP && !(g_db_iLastButtons[client] & IN_JUMP)) {
+		if(g_db_iFramesOnGround[client] >= 1 && buttons & IN_JUMP && !(g_db_iLastButtons[client] & IN_JUMP)) {
 			g_db_bValidJump[client] = true;
 			g_db_fMaxHeight[client] = -99999.0;
 			g_db_iJumpFrame[client] = GetGameTickCount();
@@ -2107,7 +2107,7 @@ public Action Top3CheckDelay(Handle timer, int client) {
 	Top3Check(client);
 }
 public Top3Check(int client) {
-	if(!IsValidClient)
+	if(!IsValidClient(client))
 		return;
 	if(g_bLJ[client] && g_bBuggedStat[client] == false) {
 		if(g_js_LjRank[client] == 1)
@@ -2640,7 +2640,7 @@ public JumpTopMenuHandler(Handle menu, MenuAction action, param1, param2) {
 		}
 	}
 	else if(action == MenuAction_Cancel)
-		TopMenu(param1)
+		TopMenu(param1);
 	if(action == MenuAction_End)
 		delete menu;
 }
@@ -2782,26 +2782,6 @@ public SQL_viewBhop2RecordCallback2(Handle owner, Handle hndl, const char[] erro
 		}
 	}
 }
-public SQL_viewBBhop2RecordCallback2(Handle owner, Handle hndl, const char[] error, any:data) {
-	if(SQL_HasResultSet(hndl) && SQL_FetchRow(hndl)) {
-		char szName[MAX_NAME_LENGTH];
-		int rank = SQL_GetRowCount(hndl);
-		Handle pack = data;
-		ResetPack(pack);
-		int client = ReadPackCell(pack);
-		ReadPackString(pack, szName, MAX_NAME_LENGTH);
-		CloseHandle(pack);
-		if(rank < 21 && rank < g_js_BBhopRank[client]) {
-			g_js_BBhopRank[client] = rank;
-			for(new i = 1; i <= MaxClients; i++) {
-				if(IsValidClient(i) && !IsFakeClient(i)) {
-					CPrintToChat(i, "[{lightgreen}JS{default}] {olive}%s is now #%i in the Bugged Bunnyhop Top 20! [%.3f units]", szName, rank, g_js_fBuggedPersonal_Bhop_Record[client])
-					PrintToConsole(i, "[JS] %s is now #%i in the Bugged Bunnyhop Top 20! [%.3f units]", szName, rank, g_js_fBuggedPersonal_Bhop_Record[client]);
-				}
-			}
-		}
-	}
-}
 public SQL_viewDropBhop2RecordCallback2(Handle owner, Handle hndl, const char[] error, any:data) {
 	if(SQL_HasResultSet(hndl) && SQL_FetchRow(hndl)) {
 		char szName[MAX_NAME_LENGTH];
@@ -2817,26 +2797,6 @@ public SQL_viewDropBhop2RecordCallback2(Handle owner, Handle hndl, const char[] 
 				if(IsValidClient(i) && !IsFakeClient(i)) {
 					PrintToChat(i, "%t", "Jumpstats_DropBhopTop", MOSSGREEN, WHITE, YELLOW, szName, rank, g_js_fPersonal_DropBhop_Record[client]);
 					PrintToConsole(i, "[JS] %s is now #%i in the nobug Drop-Bunnyhop Top 20! [%.3f units]", szName, rank, g_js_fPersonal_DropBhop_Record[client]);
-				}
-			}
-		}
-	}
-}
-public SQL_viewBDropBhop2RecordCallback2(Handle owner, Handle hndl, const char[] error, any:data) {
-	if(SQL_HasResultSet(hndl) && SQL_FetchRow(hndl)) {
-		char szName[MAX_NAME_LENGTH];
-		int rank = SQL_GetRowCount(hndl);
-		Handle pack = data;
-		ResetPack(pack);
-		int client = ReadPackCell(pack);
-		ReadPackString(pack, szName, MAX_NAME_LENGTH);
-		CloseHandle(pack);
-		if(rank < 21 && rank < g_js_BDropBhopRank[client]) {
-			g_js_BDropBhopRank[client] = rank;
-			for(new i = 1; i <= MaxClients; i++) {
-				if(IsValidClient(i) && !IsFakeClient(i)) {
-					CPrintToChat(i, "[{lightgreen}JS{default}] {olive}%s is now #%i in the Drop Bunnyhop Top 20! [%.3f units]", szName, rank, g_js_fBuggedPersonal_DropBhop_Record[client])
-					PrintToConsole(i, "[JS] %s is now #%i in the Bugged Drop Bunnyhop Top 20! [%.3f units]", szName, rank, g_js_fBuggedPersonal_Bhop_Record[client]);
 				}
 			}
 		}
@@ -2882,26 +2842,6 @@ public SQL_viewMultiBhop2RecordCallback2(Handle owner, Handle hndl, const char[]
 				if(IsValidClient(i) && !IsFakeClient(i)) {
 					PrintToChat(i, "%t", "Jumpstats_MultiBhopTop", MOSSGREEN, WHITE, YELLOW, szName, rank, g_js_fPersonal_MultiBhop_Record[client]);
 					PrintToConsole(i, "[JS] %s is now #%i in the nobug Multi-Bunnyhop Top 20! [%.3f units]", szName, rank, g_js_fPersonal_MultiBhop_Record[client]);
-				}
-			}
-		}
-	}
-}
-public SQL_viewBMultiBhop2RecordCallback2(Handle owner, Handle hndl, const char[] error, any:data) {
-	if(SQL_HasResultSet(hndl) && SQL_FetchRow(hndl)) {
-		char szName[MAX_NAME_LENGTH];
-		int rank = SQL_GetRowCount(hndl);
-		Handle pack = data;
-		ResetPack(pack);
-		int client = ReadPackCell(pack);
-		ReadPackString(pack, szName, MAX_NAME_LENGTH);
-		CloseHandle(pack);
-		if(rank < 21 && rank < g_js_MultiBhopRank[client]) {
-			g_js_MultiBhopRank[client] = rank;
-			for(new i = 1; i <= MaxClients; i++) {
-				if(IsValidClient(i) && !IsFakeClient(i)) {
-					CPrintToChat(i, "[{lightgreen}JS{default}] {olive}%s is now #%i in the Bugged Multi-Bunnyhop Top 20! [%.3f units]", szName, rank, g_js_fBuggedPersonal_MultiBhop_Record[client])
-					PrintToConsole(i, "[JS] %s is now #%i in the Bugged Multi-Bunnyhop Top 20! [%.3f units]", szName, rank, g_js_fBuggedPersonal_MultiBhop_Record[client]);
 				}
 			}
 		}
@@ -3102,26 +3042,6 @@ public SQL_viewWj2RecordCallback2(Handle owner, Handle hndl, const char[] error,
 				if(IsValidClient(i) && !IsFakeClient(i)) {
 					PrintToChat(i, "%t", "Jumpstats_WjTop", MOSSGREEN, WHITE, YELLOW, szName, rank, g_js_fPersonal_Wj_Record[client]);
 					PrintToConsole(i, "[JS] %s is now #%i in the Weirdjump 20! [%.3f units]", szName, rank, g_js_fPersonal_Wj_Record[client]);
-				}
-			}
-		}
-	}
-}
-public SQL_viewBWj2RecordCallback2(Handle owner, Handle hndl, const char[] error, any:data) {
-	if(SQL_HasResultSet(hndl) && SQL_FetchRow(hndl)) {
-		char szName[MAX_NAME_LENGTH];
-		int rank = SQL_GetRowCount(hndl);
-		Handle pack = data;
-		ResetPack(pack);
-		int client = ReadPackCell(pack);
-		ReadPackString(pack, szName, MAX_NAME_LENGTH);
-		CloseHandle(pack);
-		if(rank < 21 && rank < g_js_BWjRank[client]) {
-			g_js_BWjRank[client] = rank;
-			for(new i = 1; i <= MaxClients; i++) {
-				if(IsValidClient(i) && !IsFakeClient(i)) {
-					CPrintToChat(i, "[{lightgreen}JS{default}] {olive}%s is now #%i in the Bugged WeirdJump Top 20! [%.3f units]", szName, rank, g_js_fBuggedPersonal_Wj_Record[client]);
-					PrintToConsole(i, "[JS] %s is now #%i in the Bugged WeirdJump 20! [%.3f units]", szName, rank, g_js_fBuggedPersonal_Wj_Record[client]);
 				}
 			}
 		}
@@ -3567,6 +3487,8 @@ public LjJumpMenuHandler1(Handle menu, MenuAction action, param1, param2) {
 		GetMenuItem(menu, param2, id, sizeof(id));
 		db_viewJumpStats(param1, id);
 	}
+	else if(action == MenuAction_Cancel)
+		JumpTopMenu(param1);
 	if(action == MenuAction_End)
 		delete menu;
 }
@@ -3577,6 +3499,8 @@ public BLjJumpMenuHandler1(Handle menu, MenuAction action, param1, param2) {
 		GetMenuItem(menu, param2, id, sizeof(id));
 		db_viewBJumpStats(param1, id);
 	}
+	else if(action == MenuAction_Cancel)
+		TopMenu(param1);
 	if(action == MenuAction_End)
 		delete menu;
 }
@@ -3587,16 +3511,8 @@ public WjJumpMenuHandler1(Handle menu, MenuAction action, param1, param2) {
 		GetMenuItem(menu, param2, id, sizeof(id));
 		db_viewJumpStats(param1, id);
 	}
-	if(action == MenuAction_End)
-		delete menu;
-}
-public BWjJumpMenuHandler1(Handle menu, MenuAction action, param1, param2) {
-	if(action == MenuAction_Select) {
-		g_bdetailView[param1]=true;
-		char id[32];
-		GetMenuItem(menu, param2, id, sizeof(id));
-		db_viewBJumpStats(param1, id);
-	}
+	else if(action == MenuAction_Cancel)
+		JumpTopMenu(param1);
 	if(action == MenuAction_End)
 		delete menu;
 }
@@ -3607,16 +3523,8 @@ public BhopJumpMenuHandler1(Handle menu, MenuAction action, param1, param2) {
 		GetMenuItem(menu, param2, id, sizeof(id));
 		db_viewJumpStats(param1, id);
 	}
-	if(action == MenuAction_End)
-		delete menu;
-}
-public BBhopJumpMenuHandler1(Handle menu, MenuAction action, param1, param2) {
-	if(action == MenuAction_Select) {
-		g_bdetailView[param1]=true;
-		char id[32];
-		GetMenuItem(menu, param2, id, sizeof(id));
-		db_viewBJumpStats(param1, id);
-	}
+	else if(action == MenuAction_Cancel)
+		JumpTopMenu(param1);
 	if(action == MenuAction_End)
 		delete menu;
 }
@@ -3627,16 +3535,8 @@ public DropBhopJumpMenuHandler1(Handle menu, MenuAction action, param1, param2) 
 		GetMenuItem(menu, param2, id, sizeof(id));
 		db_viewJumpStats(param1, id);
 	}
-	if(action == MenuAction_End)
-		delete menu;
-}
-public BDropBhopJumpMenuHandler1(Handle menu, MenuAction action, param1, param2) {
-	if(action == MenuAction_Select) {
-		g_bdetailView[param1]=true;
-		char id[32];
-		GetMenuItem(menu, param2, id, sizeof(id));
-		db_viewBJumpStats(param1, id);
-	}
+	else if(action == MenuAction_Cancel)
+		JumpTopMenu(param1);
 	if(action == MenuAction_End)
 		delete menu;
 }
@@ -3647,16 +3547,8 @@ public MultiBhopJumpMenuHandler1(Handle menu, MenuAction action, param1, param2)
 		GetMenuItem(menu, param2, id, sizeof(id));
 		db_viewJumpStats(param1, id);
 	}
-	if(action == MenuAction_End)
-		delete menu;
-}
-public BMultiBhopJumpMenuHandler1(Handle menu, MenuAction action, param1, param2) {
-	if(action == MenuAction_Select) {
-		g_bdetailView[param1]=true;
-		char id[32];
-		GetMenuItem(menu, param2, id, sizeof(id));
-		db_viewBJumpStats(param1, id);
-	}
+	else if(action == MenuAction_Cancel)
+		JumpTopMenu(param1);
 	if(action == MenuAction_End)
 		delete menu;
 }
@@ -3792,11 +3684,15 @@ public SQL_ViewJumpStatsCallback(Handle owner, Handle hndl, const char[] error, 
 			SetMenuOptionFlags(menu, MENUFLAG_BUTTON_EXIT);
 			DisplayMenu(menu, client, MENU_TIME_FOREVER);
 		}
-		else
+		else {
 			CPrintToChat(client, "[{lightgreen}JS{default}] No jump records found!");
+			JumpTopMenu(client);
+		}
 	}
-	else
+	else {
 		CPrintToChat(client, "[{lightgreen}JS{default}] No jump records found!");
+		JumpTopMenu(client);
+	}
 }
 public SQL_ViewBJumpStatsCallback(Handle owner, Handle hndl, const char[] error, any data) {
 	int client = data;
@@ -3815,7 +3711,7 @@ public SQL_ViewBJumpStatsCallback(Handle owner, Handle hndl, const char[] error,
 		int bljsync = SQL_FetchInt(hndl, 6);
 	//Height?
 		float bljheight = SQL_FetchFloat(hndl, 7);
-		if(bljrecord > 0.0) { // || ljblockdist > 0
+		if(bljrecord > 0.0) {
 			Format(szVr, 255, "JS: %s (%s)\nBugged Stats\nType               Distance  Strafes Pre        Max      Height  Sync", szName, szSteamId);
 			Menu menu = new Menu(BJumpStatsMenuHandler);
 			menu.SetTitle(szVr);
@@ -3837,11 +3733,15 @@ public SQL_ViewBJumpStatsCallback(Handle owner, Handle hndl, const char[] error,
 			SetMenuOptionFlags(menu, MENUFLAG_BUTTON_EXIT);
 			DisplayMenu(menu, client, MENU_TIME_FOREVER);
 		}
-		else
+		else {
 			CPrintToChat(client, "[{lightgreen}JS{default}] No jump records found!");
+			db_BselectTopLj(client);
+		}
 	}
-	else
+	else {
 		CPrintToChat(client, "[{lightgreen}JS{default}] No jump records found!");
+		db_BselectTopLj(client);
+	}
 }
 public int JumpStatsMenuHandler(Menu menu, MenuAction action, int client, int info) {
 	if(action == MenuAction_Select) {
@@ -3912,6 +3812,10 @@ public int JumpStatsMenuHandler(Menu menu, MenuAction action, int client, int in
 			JumpTopMenu(client);
 		}
 	}
+	else if(action == MenuAction_Cancel)
+		JumpTopMenu(client);
+	if(action == MenuAction_End)
+		delete menu;
 }
 public int BJumpStatsMenuHandler(Menu menu, MenuAction action, int client, int info) {
 	if(action == MenuAction_Select) {
@@ -3966,6 +3870,10 @@ public int BJumpStatsMenuHandler(Menu menu, MenuAction action, int client, int i
 			db_BselectTopLj(client);
 		}
 	}
+	else if(action == MenuAction_Cancel)
+		db_BselectTopLj(client);
+	if(action == MenuAction_End)
+		delete menu;
 }
 public db_viewPersonalLJRecord(client, char szSteamId[32]) {
 	char szQuery[512];
@@ -4827,38 +4735,39 @@ void OnJumpLand(int client) {
 	FormatEdge(client, szEdge, sizeof(szEdge));
 	if(fOffset < -EPSILON) {
 		float failDist = CalcFailDistance(g_db_fJumpPosition[client], g_db_fFailPos[client], g_db_fFailVelocity[client]);
-		char szFailDist[32];
-		FormatFailDist(szFailDist, sizeof(szFailDist), failDist);
-		char szAirtime[32];
-		FormatAirtime(szAirtime, sizeof(szAirtime), g_db_iFailAirTime[client]);
-		char szSync[32];
-		FormatSync(szSync, sizeof(szSync), g_db_iFailStatSync[client], g_db_iFailAirTime[client]);
-		char szBlockdist[32];
-		FormatBlockDistance(szBlockdist, sizeof(szBlockdist), fBlockDist);
-		char szOverlap[32];
-		FormatOverlap(szOverlap, sizeof(szOverlap), g_db_iFramesOverlapped[client]);
-		char szDeadAirtime[32];
-		FormatDeadAirtime(szDeadAirtime, sizeof(szDeadAirtime), g_db_iDeadAirtime[client]);
-		PrintFailStat(client, szFailDist, szEdge, szBlockdist, szJumpHeight, szSync, szAirtime, szWRelease, szOverlap, szDeadAirtime);
+		if(g_db_fMinJumpDistance <= failDist <= g_db_fMaxJumpDistance) {
+			char szFailDist[64];
+			FormatFailDist(szFailDist, sizeof(szFailDist), failDist);
+			char szAirtime[32];
+			FormatAirtime(szAirtime, sizeof(szAirtime), g_db_iFailAirTime[client]);
+			char szSync[32];
+			FormatSync(szSync, sizeof(szSync), g_db_iFailStatSync[client], g_db_iFailAirTime[client]);
+			char szBlockdist[32];
+			FormatBlockDistance(szBlockdist, sizeof(szBlockdist), fBlockDist);
+			char szOverlap[32];
+			FormatOverlap(szOverlap, sizeof(szOverlap), g_db_iFramesOverlapped[client]);
+			char szDeadAirtime[32];
+			FormatDeadAirtime(szDeadAirtime, sizeof(szDeadAirtime), g_db_iDeadAirtime[client]);
+			PrintFailStat(client, szFailDist, szEdge, szBlockdist, szJumpHeight, szSync, szAirtime, szWRelease, szOverlap, szDeadAirtime);
+		}
 	}
 	else {
 		float distance = CalcJumpDistance(client);
-		if(!IsFloatInRange(distance, g_db_fMinJumpDistance, g_db_fMaxJumpDistance))
-			return;
-		char szDist[32];
-		FormatDist(szDist, sizeof(szDist), distance);
-		char szAirtime[32];
-		FormatAirtime(szAirtime, sizeof(szAirtime), g_db_iFramesInAir[client]);
-		char szSync[32];
-		FormatSync(szSync, sizeof(szSync), g_db_iStatSync[client], g_db_iFramesInAir[client]);
-		char szBlockdist[32];
-		FormatBlockDistance(szBlockdist, sizeof(szBlockdist), fBlockDist);
-		char szOverlap[32];
-		FormatOverlap(szOverlap, sizeof(szOverlap), g_db_iFramesOverlapped[client]);
-		char szDeadAirtime[32];
-		FormatDeadAirtime(szDeadAirtime, sizeof(szDeadAirtime), g_db_iDeadAirtime[client]);
-		if(distance < 297.0)
+		if(g_db_fMinJumpDistance <= distance <= g_db_fMaxJumpDistance) {
+			char szDist[32];
+			FormatDist(szDist, sizeof(szDist), distance);
+			char szAirtime[32];
+			FormatAirtime(szAirtime, sizeof(szAirtime), g_db_iFramesInAir[client]);
+			char szSync[32];
+			FormatSync(szSync, sizeof(szSync), g_db_iStatSync[client], g_db_iFramesInAir[client]);
+			char szBlockdist[32];
+			FormatBlockDistance(szBlockdist, sizeof(szBlockdist), fBlockDist);
+			char szOverlap[32];
+			FormatOverlap(szOverlap, sizeof(szOverlap), g_db_iFramesOverlapped[client]);
+			char szDeadAirtime[32];
+			FormatDeadAirtime(szDeadAirtime, sizeof(szDeadAirtime), g_db_iDeadAirtime[client]);
 			PrintJumpstat(client, szDist, szEdge, szBlockdist, szJumpHeight, szSync, szAirtime, szWRelease, szOverlap, szDeadAirtime);
+		}
 	}
 	g_db_bValidJump[client] = false;
 }
