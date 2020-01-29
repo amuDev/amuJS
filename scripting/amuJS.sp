@@ -117,6 +117,9 @@ ConVar g_cvAdvert2;
 //Pre or nopre?
 int g_iNoPreServer;
 ConVar g_cvNoPreServer;
+//Allow Distbug?
+int g_iAllowDistbug;
+ConVar g_cvAllowDistbug;
 //distbug things
 #define EPSILON						0.000001
 #define MAXEDGE						32.0
@@ -456,6 +459,7 @@ public OnPluginStart() {
 	g_cvNoPreServer			= CreateConVar("js_nopre_server", "0.0", "Is the server pre or nopre? used for ladder bug detection. 1 = nopre 0 = pre", FCVAR_NOTIFY, true, 1.0, true, 0.0);
 	g_cvAdvert1					= CreateConVar("js_advert_1", "", "Text that prints to chat 60 seconds after round start, you can use color tags (see csgocolors.inc) (Leave empty for no advert)", FCVAR_NOTIFY);
 	g_cvAdvert2					= CreateConVar("js_advert_2", "", "Text that prints to chat 20 seconds after advert1, you can use color tags (see csgocolors.inc) (Leave empty for no advert)", FCVAR_NOTIFY);
+	g_cvAllowDistbug		= CreateConVar("js_allow_distbug", "1.0", "Allow your clients to use distbug or not", FCVAR_NOTIFY);
 
 	g_fGreyLJ						= GetConVarFloat(g_cvGreyLJ);
 	HookConVarChange(g_cvGreyLJ, OnSettingChanged);
@@ -523,6 +527,8 @@ public OnPluginStart() {
 	HookConVarChange(g_cvCTDistbugStats, OnSettingChanged);
 	g_iNoPreServer			= GetConVarInt(g_cvNoPreServer);
 	HookConVarChange(g_cvNoPreServer, OnSettingChanged);
+	g_iAllowDistbug			= GetConVarInt(g_cvAllowDistbug);
+	HookConVarChange(g_cvAllowDistbug, OnSettingChanged);
 //thanks to JoinedSenses for the help on these 2 cvars
 	GetConVarString(g_cvAdvert1, g_szAdvert1, sizeof(g_szAdvert1));
 	HookConVarChange(g_cvAdvert1, OnSettingChanged);
@@ -664,6 +670,8 @@ public OnSettingChanged(Handle convar, const char[] oldValue, const char[] newVa
 		g_iCTDistbugStats = StringToInt(newValue[0]);
 	else if(convar == g_cvNoPreServer)
 		g_iNoPreServer = StringToInt(newValue)
+	else if(convar == g_cvAllowDistbug)
+		g_iAllowDistbug = StringToInt(newValue);
 	else if(convar == g_cvAdvert1)
 		strcopy(g_szAdvert1, sizeof(g_szAdvert1), newValue);
 	else if(convar == g_cvAdvert2)
@@ -726,6 +734,23 @@ public OnClientPostAdminCheck(int client) {
 		SetClientCookie(client, g_hEnableQuakeSounds, sCookie);
 	}
 }
+
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max) {
+  CreateNative("AC_AllowDetect", Native_AllowDetect);
+
+  RegPluginLibrary("JS-Module");
+  return APLRes_Success;
+}
+
+public int Native_AllowDetect(Handle plugin, int numParams) {
+  int client = GetNativeCell(1);
+
+  if(g_js_fPersonal_Lj_Record[client] >= g_fRedLJ)
+    return true;
+  else
+    return false;
+}
+
 public void OnConvarChanged(Handle convar, const char[] oldValue, const char[] newValue) {
 	if(convar == g_db_hGravity)
 		g_db_fTickGravity = StringToFloat(newValue[0]) / g_db_fTickRate;
@@ -2414,7 +2439,7 @@ public SpeedPanelSettingsHandler(Handle menu, MenuAction action, client, select)
 	if(action == MenuAction_Select) {
 		if(select == 0) {
 		/*
- 		* this is like this instead of calling the option
+		 * this is like this instead of calling the option
 		* because if the option is called it casues a mem leak
 		* and crashes the server
 		* leave as is unless you know how to fix
@@ -4643,6 +4668,8 @@ public db_dropPlayerJump(client) {
 }
 //Distbug Things
 public Action Command_Distbug(int client, int args) {
+	if(g_iAllowDistbug == 0)
+		return Plugin_Handled;
 	g_db_iDistbug[client] = g_db_iDistbug[client] == 1 ? 0 : 1;
 	CPrintToChat(client, "%s Distbug has been %s", PREFIX, g_db_iDistbug[client] ? "enabled. Type !strafestats to turn strafestats off." : "disabled.");
 	char sCookie[128];
@@ -4651,6 +4678,8 @@ public Action Command_Distbug(int client, int args) {
 	return Plugin_Handled;
 }
 public Action Command_StrafeStats(int client, int args) {
+	if(g_iAllowDistbug == 0)
+		return Plugin_Handled;
 	if(g_db_iDistbug[client] == 1) {
 		g_db_iStrafeStats[client] = g_db_iStrafeStats[client] == 1 ? 0 : 1;
 		CPrintToChat(client, "%s Strafe stats have been %s.", PREFIX, g_db_iStrafeStats[client] ? "turned on" : "turned off");
@@ -4839,6 +4868,8 @@ float CalcJumpDistance(int client) {
 	return -1.0;
 }
 void PrintFailStat(int client, char[] szDist, char[] szEdge, char[] szBlockdist, char[] szJumpHeight, char[] szSync, char[] szAirtime, char[] szWRelease, char[] szOverlap, char[] szDeadAirtime) {
+	if(g_iAllowDistbug == 0)
+		return;
 	if(g_db_iDistbug[client] == 1) {
 		char chatOutput[256];
 		FormatEx(chatOutput, sizeof(chatOutput), "%s{grey} %s %s%s[ %s | %s | %s | %s | %s | %s ]",
@@ -4859,6 +4890,8 @@ void PrintFailStat(int client, char[] szDist, char[] szEdge, char[] szBlockdist,
 	}
 }
 void PrintJumpstat(int client, char[] szDist, char[] szEdge, char[] szBlockdist, char[] szJumpHeight, char[] szSync, char[] szAirtime, char[] szWRelease, char[] szOverlap, char[] szDeadAirtime) {
+	if(g_iAllowDistbug == 0)
+		return;
 	if(g_db_iDistbug[client] == 1) {
 		char chatOutput[256];
 		FormatEx(chatOutput, sizeof(chatOutput), "%s{grey} %s %s%s[ %s | %s | %s | %s | %s | %s ]",
@@ -4884,6 +4917,8 @@ void PrintJumpstat(int client, char[] szDist, char[] szEdge, char[] szBlockdist,
 	}
 }
 void PrintStrafeStats(int client, float gain[MAXSTRAFES], float loss[MAXSTRAFES], float max[MAXSTRAFES], float strafeSync[MAXSTRAFES], float strafeAirtime[MAXSTRAFES], int jumpAirtime, int overlap[MAXSTRAFES], int deadAirtime[MAXSTRAFES], int strafeCount) {
+	if(g_iAllowDistbug == 0)
+		return;
 	char strafeStats[2048];
 	if(g_db_iDistbug[client] == 1) {
 		float sync;
@@ -4914,6 +4949,8 @@ void PrintStrafeStats(int client, float gain[MAXSTRAFES], float loss[MAXSTRAFES]
 	EchoToSpectators(client, strafeStats, NULL_STRING);
 }
 void EchoToSpectators(int client, const char[] conOutput, const char[] chatOutput) {
+	if(g_iAllowDistbug == 0)
+		return;
 	if(IsNullString(conOutput) && IsNullString(chatOutput))
 		return;
 	for (int i = 1; i <= MaxClients; i++) {
